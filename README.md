@@ -17,6 +17,11 @@ Tested with **250 simultaneous participants** (default cap: 300, change with `MA
 | 🏆 Leaderboard | Top 10 by quiz points, animated |
 | 🙋 Q&A | Audience asks + upvotes, mark questions answered |
 | 📝 Heading | Title / info slide |
+| 🚪 Lobby | Big QR + join code, players' names pop in |
+
+**Quiz flow (press Space to step through):** Lobby → 4-second "get ready" countdown → answer tiles with timer → reveal → leaderboard with rank changes → next question → final podium. Correct answers score 500–1000 points: the faster, the more. Paste many questions at once with **Paste quiz questions** (put `*` before the correct answer).
+
+**Design:** four slide themes (Light, White, Dark, Midnight) in the Design panel; **Preview** shows the deck full-screen without an audience.
 
 Plus: floating emoji reactions, hide results, close voting, show results on phones, reset a slide, CSV export, fullscreen, big QR (press **Q**).
 

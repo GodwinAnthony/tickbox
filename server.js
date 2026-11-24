@@ -83,7 +83,10 @@ function sanitizeDeck(d) {
   d = d && typeof d === 'object' ? d : {};
   const out = {
     title: str(d.title || 'Untitled presentation', 120),
-    settings: { askNames: !!(d.settings && d.settings.askNames) },
+    settings: {
+      askNames: !!(d.settings && d.settings.askNames),
+      theme: ['light', 'white', 'dark', 'midnight'].includes(d.settings && d.settings.theme) ? d.settings.theme : 'light',
+    },
     slides: [],
   };
   const seen = new Set();
