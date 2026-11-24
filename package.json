@@ -1,0 +1,20 @@
+{
+  "name": "tickbox",
+  "version": "1.0.0",
+  "description": "TickBox - free, self-hosted live polling & quiz platform (Mentimeter-style) for 250+ participants",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "loadtest": "node loadtest.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.1"
+  },
+  "license": "MIT"
+}
