@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F3EC">
+<title>TickBox — Join</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%235B3DF5'/%3E%3Cpath d='M8 16.5l5 5L24 10' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="aud">
+  <div class="aud-head">
+    <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="logo-word">tick<b>box</b></span></a>
+    <span class="progress-mini hidden" id="who"></span>
+  </div>
+  <div class="aud-main" id="main"></div>
+</div>
+<div class="react-bar hidden" id="reactBar">
+  <button data-e="heart" aria-label="Love">❤️</button>
+  <button data-e="like" aria-label="Like">👍</button>
+  <button data-e="laugh" aria-label="Laugh">😂</button>
+  <button data-e="wow" aria-label="Wow">😮</button>
+  <button data-e="clap" aria-label="Clap">👏</button>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/viz.js"></script>
+<script src="/js/audience.js"></script>
+</body>
+</html>

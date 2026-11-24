@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TickBox — live polls, word clouds &amp; quizzes</title>
+<meta name="description" content="TickBox: free live polling, word clouds, Q&A and quizzes for audiences of 250+ people.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%235B3DF5'/%3E%3Cpath d='M8 16.5l5 5L24 10' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="landing">
+  <header>
+    <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="logo-word">tick<b>box</b></span></a>
+    <a class="btn dark" href="/host">Create a presentation →</a>
+  </header>
+
+  <section class="hero">
+    <div>
+      <div class="stamp">✓ Free for audiences of 250+ people</div>
+      <h1>Every voice,<br><span class="scribble">ticked.<svg viewBox="0 0 200 18" preserveAspectRatio="none"><path d="M3 12 C 50 3, 120 3, 197 9" stroke="#FF6B4A" stroke-width="5" fill="none" stroke-linecap="round"/></svg></span></h1>
+      <p class="lead">Live polls, word clouds, Q&amp;A and quizzes that animate on the big screen while your whole room votes from their phones.</p>
+      <form class="join-card" id="joinForm" autocomplete="off">
+        <h3>Joining a presentation?</h3>
+        <div class="sub">Enter the 6-digit code shown on the screen</div>
+        <input class="input code-input" id="code" inputmode="numeric" placeholder="123 456" maxlength="7" aria-label="Join code">
+        <div class="err" id="err"></div>
+        <button class="btn primary block" style="margin-top:6px">Join →</button>
+      </form>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="float-card a">
+        <b style="font-family:var(--font-display);font-size:18px">How was today's session?</b>
+        <div class="mini-bars">
+          <span style="height:90%;background:#5B3DF5"></span>
+          <span style="height:62%;background:#FF6B4A;animation-delay:-.6s"></span>
+          <span style="height:38%;background:#12B886;animation-delay:-1.2s"></span>
+          <span style="height:20%;background:#FFB020;animation-delay:-1.8s"></span>
+        </div>
+      </div>
+      <div class="float-card b">
+        <div class="mini-cloud">
+          <span style="font-size:34px;color:#5B3DF5">robots</span>
+          <span style="font-size:18px;color:#FF6B4A">fun</span>
+          <span style="font-size:24px;color:#12B886">ideas</span>
+          <span style="font-size:15px;color:#E8459A">code</span>
+          <span style="font-size:22px;color:#2E9BFF">teamwork</span>
+          <span style="font-size:14px;color:#FFB020">future</span>
+        </div>
+      </div>
+      <div class="float-card c">
+        <div style="font-size:13px;opacity:.7;font-weight:700">LIVE NOW</div>
+        <div style="font-family:var(--font-display);font-weight:800;font-size:38px">248 <span style="font-size:18px;opacity:.7">joined</span></div>
+        <div style="font-size:24px;margin-top:4px">❤️ 👏 😂 👍</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature"><div class="ic">⚡</div><h4>Speed quizzes</h4><p>The faster a correct answer, the more points. Leaderboard after every question and a final podium.</p></div>
+    <div class="feature"><div class="ic">📊</div><h4>Polls too</h4><p>Multiple choice, word clouds, open ended, scales, ranking and Q&amp;A — all animated live.</p></div>
+    <div class="feature"><div class="ic">📱</div><h4>No app needed</h4><p>Audience scans a QR code or types a code. Works on any phone browser.</p></div>
+    <div class="feature"><div class="ic">📥</div><h4>Export results</h4><p>Download every response as a CSV when you're done.</p></div>
+  </section>
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const codeEl = document.getElementById('code');
+  if (params.get('code')) codeEl.value = params.get('code');
+  codeEl.addEventListener('input', () => {
+    const d = codeEl.value.replace(/\D/g, '').slice(0, 6);
+    codeEl.value = d.length > 3 ? d.slice(0, 3) + ' ' + d.slice(3) : d;
+  });
+  document.getElementById('joinForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const code = codeEl.value.replace(/\D/g, '');
+    const err = document.getElementById('err');
+    if (code.length !== 6) { err.textContent = 'Codes have 6 digits'; return; }
+    try {
+      const r = await fetch('/api/room/' + code);
+      if (!r.ok) { err.textContent = 'No live presentation with that code'; return; }
+    } catch (_) {}
+    location.href = '/join?code=' + code;
+  });
+</script>
+</body>
+</html>
