@@ -12,55 +12,94 @@
 </head>
 <body>
 <div class="editor" id="editor">
-  <div class="topbar">
-    <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="logo-word">tick<b>box</b></span></a>
-    <input class="title-input" id="deckTitle" placeholder="Presentation title" aria-label="Presentation title">
-    <div class="spacer"></div>
-    <button class="btn ghost sm" id="btnDecks">📁 My presentations</button>
-    <button class="btn ghost sm" id="btnSettings">⚙️ Settings</button>
-    <button class="btn primary" id="btnPresent">▶ Present</button>
-  </div>
-  <div class="ed-body">
-    <div class="slide-list" id="slideList"></div>
-    <div class="preview-wrap">
-      <div class="preview-frame"><div class="stage" id="previewStage"></div></div>
-      <div class="preview-note">Preview with sample results · the audience sees a simple voting screen on their phones</div>
+  <header class="topbar">
+    <a class="ibtn back" href="/" title="TickBox home" data-ic="left"></a>
+    <span class="logo-mark mini"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <div class="title-wrap">
+      <input class="title-input" id="deckTitle" placeholder="Presentation title" aria-label="Presentation title">
+      <button class="sub-link" id="btnDecks" data-ic="folder">My presentations</button>
     </div>
-    <div class="props" id="props"></div>
+    <div class="spacer"></div>
+    <button class="btn round soft" id="btnPreview" data-ic="eye">Preview</button>
+    <button class="btn round primary" id="btnPresent" data-ic="play">Start presentation</button>
+  </header>
+  <div class="ed-body">
+    <aside class="slide-col">
+      <button class="new-slide" id="addSlide" data-ic="plus">New slide</button>
+      <div class="slide-list" id="slideList"></div>
+    </aside>
+    <main class="canvas-wrap" id="canvasWrap">
+      <div class="canvas" id="canvas">
+        <div class="stage" id="previewStage"></div>
+        <div class="join-strip"><span>Join at <b id="stripHost"></b></span><span class="code">123 456</span></div>
+      </div>
+      <div class="quick-add" id="quickAdd">
+        <span class="qa-label">Add</span>
+        <button data-q="quiz" data-ic="quiz">Quiz</button>
+        <button data-q="mc" data-ic="mc">Poll</button>
+        <button data-q="wordcloud" data-ic="wordcloud">Word cloud</button>
+        <button data-q="open" data-ic="open">Open ended</button>
+        <button data-q="leaderboard" data-ic="leaderboard">Leaderboard</button>
+        <button data-q="more" data-ic="plus">More</button>
+        <span class="qa-sep"></span>
+        <button id="qaPaste" data-ic="paste">Paste questions</button>
+      </div>
+    </main>
+    <aside class="panel">
+      <div class="panel-head">
+        <div class="ptabs" role="tablist">
+          <button class="ptab on" data-tab="edit" data-ic="pencil">Edit</button>
+          <button class="ptab" data-tab="design" data-ic="palette">Design</button>
+        </div>
+        <span class="hidden" id="panelTitle"></span>
+      </div>
+      <div class="panel-body" id="props"></div>
+    </aside>
+  </div>
+</div>
+
+<div class="pv hidden" id="pv">
+  <div class="pv-stage" id="pvStage"></div>
+  <div class="pv-bar">
+    <span class="pv-tag">Preview</span>
+    <button class="tb" id="pvPrev" data-ic="left" title="Previous (←)"></button>
+    <span class="tb-count" id="pvPos"></span>
+    <button class="tb" id="pvNext" data-ic="right" title="Next (→)"></button>
+    <button class="tb" id="pvClose" data-ic="x" title="Close (Esc)"></button>
   </div>
 </div>
 
 <div class="present hidden" id="present">
   <div class="present-top">
-    <div class="joinbar" id="joinbar" title="Show large QR code (Q)">
-      <img id="qrSmall" alt="QR code to join">
-      <div class="txt">Join at <b id="joinHost"></b><br>use code</div>
-      <div class="code" id="joinCode"></div>
-    </div>
+    <div></div>
     <div class="live-stats">
       <div class="pill"><span class="live-dot"></span><span><span id="pCount">0</span> joined</span></div>
-      <div class="pill" id="rPill">✓ <span><span id="rCount">0</span> <span id="rLabel">responses</span></span></div>
+      <div class="pill" id="rPill" data-ic="check"><span><span id="rCount">0</span> <span id="rLabel">responses</span></span></div>
     </div>
   </div>
   <div class="present-stage" id="presentStage"></div>
   <div class="present-controls" id="controls">
-    <div class="ctrl-group">
-      <button class="btn" id="cPrev" title="Previous (←)">‹ Prev</button>
-      <span class="count" id="cPos">1 / 1</span>
-      <button class="btn" id="cNext" title="Next (→)">Next ›</button>
+    <div class="toolbar">
+      <button class="tb" id="cPrev" title="Previous (←)" data-ic="left"></button>
+      <span class="tb-count" id="cPos">1 / 1</span>
+      <button class="tb tb-next" id="cNext" title="Next (→ or Space)"></button>
+      <span class="tb-sep"></span>
+      <button class="tb" id="cQuiz" title="Run this question again" data-ic="reset"></button>
+      <button class="tb" id="cOpen" title="Close voting"></button>
+      <button class="tb" id="cHide" title="Hide results (H)"></button>
+      <button class="tb" id="cPhones" title="Show results on phones" data-ic="phone"></button>
+      <span class="tb-sep"></span>
+      <button class="tb" id="cQR" title="Show join QR code (Q)" data-ic="qr"></button>
+      <button class="tb" id="cReset" title="Clear responses on this slide" data-ic="reset"></button>
+      <button class="tb" id="cExport" title="Download results (CSV)" data-ic="download"></button>
+      <button class="tb" id="cFull" title="Fullscreen (F)" data-ic="expand"></button>
+      <button class="tb tb-end" id="cEnd" title="End session" data-ic="x"></button>
     </div>
-    <div class="ctrl-group">
-      <button class="btn" id="cQuiz">⚡ Start quiz</button>
-      <button class="btn" id="cOpen" title="Open / close voting">🔓 Voting open</button>
-      <button class="btn" id="cHide" title="Hide results (H)">🙈 Hide results</button>
-      <button class="btn" id="cPhones" title="Show results on phones">📱 Results on phones</button>
-    </div>
-    <div class="ctrl-group">
-      <button class="btn" id="cReset" title="Clear responses on this slide">↺ Reset</button>
-      <button class="btn" id="cExport" title="Download CSV">⤓ Export</button>
-      <button class="btn" id="cFull" title="Fullscreen (F)">⛶</button>
-      <button class="btn danger" id="cEnd">✕ End</button>
-    </div>
+  </div>
+  <div class="joinbar" id="joinbar" title="Show large QR code (Q)">
+    <img id="qrSmall" alt="QR code to join">
+    <span class="txt">Join at <b id="joinHost"></b></span>
+    <span class="code" id="joinCode"></span>
   </div>
   <div class="reaction-layer" id="reactions"></div>
 </div>
