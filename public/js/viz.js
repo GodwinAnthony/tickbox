@@ -15,17 +15,56 @@
     '<polygon points="12,2 15,9 22,9.5 16.5,14 18.5,21.5 12,17.5 5.5,21.5 7.5,14 2,9.5 9,9" fill="#fff"/>',
     '<polygon points="7,3 17,3 22,12 17,21 7,21 2,12" fill="#fff"/>',
   ];
+  const P = {
+    mc: '<path d="M6 20V11M12 20V5M18 20v-6"/>',
+    wordcloud: '<path d="M17.5 19a4.5 4.5 0 1 0-1.3-8.8A6 6 0 0 0 4.6 12.6 3.4 3.4 0 0 0 6.5 19z"/>',
+    open: '<path d="M21 14.5a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    scale: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+    ranking: '<path d="M11 6h10M11 12h10M11 18h10M4 5l2-1v6M4 14.5a1.5 1.5 0 0 1 3 0c0 1.5-3 2-3 3.5h3"/>',
+    quiz: '<path d="M13 2 4 14h8l-1 8 9-12h-8z"/>',
+    leaderboard: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v1.5A3.5 3.5 0 0 1 17 10M7 5H4v1.5A3.5 3.5 0 0 0 7 10"/>',
+    lobby: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/>',
+    qa: '<circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.3a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.4-2.7 4M12 17.5h.01"/>',
+    content: '<path d="M5 7V4.5h14V7M12 4.5v15M9 19.5h6"/>',
+    folder: '<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5z"/>',
+    settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+    left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>',
+    up: '<path d="m18 15-6-6-6 6"/>', down: '<path d="m6 9 6 6 6-6"/>',
+    lock: '<rect x="4.5" y="11" width="15" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/>',
+    unlock: '<rect x="4.5" y="11" width="15" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 7.7-1.5"/>',
+    eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    eyeoff: '<path d="M10 5.2A9 9 0 0 1 12 5c6.5 0 10 7 10 7a16 16 0 0 1-2.4 3.2M6.5 6.6A16 16 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 5.3-1.6M3 3l18 18M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+    phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/>',
+    reset: '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/>',
+    download: '<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M5 20.5h14"/>',
+    expand: '<path d="M8 3.5H5A1.5 1.5 0 0 0 3.5 5v3M20.5 8V5A1.5 1.5 0 0 0 19 3.5h-3M3.5 16v3A1.5 1.5 0 0 0 5 20.5h3M16 20.5h3a1.5 1.5 0 0 0 1.5-1.5v-3"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>', plus: '<path d="M12 5v14M5 12h14"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
+    trash: '<path d="M4 6.5h16M9 6.5V4h6v2.5M18 6.5l-.8 13a1.5 1.5 0 0 1-1.5 1.5H8.3a1.5 1.5 0 0 1-1.5-1.5L6 6.5"/>',
+    paste: '<rect x="8.5" y="2.5" width="7" height="4" rx="1"/><path d="M15.5 4.5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h2"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
+    skip: '<path d="M5 5v14l10-7z"/><path d="M19 5v14"/>',
+    qr: '<rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3M20.5 14v.01M14 20.5h6.5v-3"/>',
+    arrowup: '<path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/>',
+    pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+    palette: '<path d="M12 21a9 9 0 1 1 9-9c0 2.5-2 3.5-4 3.5h-1.5a1.5 1.5 0 0 0-1 2.6c.6.6.5 2.9-2.5 2.9z"/><circle cx="7.5" cy="11" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="16" cy="8.5" r="1"/>',
+    party: '<path d="M4 20l4.5-12L16 15.5z"/><path d="M14 4.5c0 2-1 3-3 3M19.5 10c-2 0-3 1-3 3M15 2.5v.01M21.5 7v.01M20 15.5v.01"/>',
+  };
+  const icon = (name, cls) => `<svg class="ic${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;
   const TYPE_META = {
-    mc: { icon: '📊', name: 'Multiple choice', desc: 'Vote on options, live bar chart' },
-    wordcloud: { icon: '☁️', name: 'Word cloud', desc: 'Words grow as more people say them' },
-    open: { icon: '💬', name: 'Open ended', desc: 'Free-text answers on a live wall' },
-    scale: { icon: '🎚️', name: 'Scales', desc: 'Rate statements on a scale' },
-    ranking: { icon: '🏅', name: 'Ranking', desc: 'Put items in order of preference' },
-    quiz: { icon: '⚡', name: 'Quiz', desc: 'Timed question with points' },
-    leaderboard: { icon: '🏆', name: 'Leaderboard', desc: 'Podium + top 10 quiz scores' },
-    lobby: { icon: '🚪', name: 'Lobby', desc: 'Waiting room — joined names pop up' },
-    qa: { icon: '🙋', name: 'Q&A', desc: 'Audience asks and upvotes questions' },
-    content: { icon: '📝', name: 'Heading', desc: 'Title or info slide, no voting' },
+    mc: { name: 'Multiple choice', desc: 'Vote on options, live bar chart' },
+    quiz: { name: 'Quiz', desc: 'Timed question, faster = more points' },
+    lobby: { name: 'Lobby', desc: 'Waiting room, names pop up' },
+    leaderboard: { name: 'Leaderboard', desc: 'Podium and top 10 scores' },
+    wordcloud: { name: 'Word cloud', desc: 'Words grow as more people say them' },
+    open: { name: 'Open ended', desc: 'Free-text answers on a live wall' },
+    scale: { name: 'Scales', desc: 'Rate statements on a scale' },
+    ranking: { name: 'Ranking', desc: 'Order items by preference' },
+    qa: { name: 'Q&A', desc: 'Audience asks and upvotes' },
+    content: { name: 'Heading', desc: 'Title or info slide' },
   };
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -62,7 +101,7 @@
     viz.classList.toggle('blurred', !!opts.hideResults && slide.type !== 'content');
     let note = viz.querySelector('.viz-hidden-note');
     if (opts.hideResults && !note && slide.type !== 'content') {
-      note = document.createElement('div'); note.className = 'viz-hidden-note'; note.textContent = '🙈 Results hidden';
+      note = document.createElement('div'); note.className = 'viz-hidden-note'; note.innerHTML = icon('eyeoff') + ' Results hidden';
       viz.appendChild(note);
     } else if (!opts.hideResults && note) note.remove();
     const fn = R[slide.type];
@@ -82,7 +121,7 @@
   }
 
   function subtitle(slide, opts) {
-    if (slide.type === 'quiz') return `⚡ Quiz · ${slide.time}s · fastest correct answers win more points`;
+    if (slide.type === 'quiz') return `${icon('clock')} ${slide.time} seconds · faster correct answers score more`;
     if (slide.type === 'leaderboard') return '';
     if (slide.type === 'qa' && opts.joinUrl) return `Ask at <b>${esc(opts.joinUrl)}</b>`;
     return '';
@@ -137,7 +176,7 @@
       } else if (phase === 'ready') {
         const r = document.createElement('div');
         r.className = 'quiz-ready';
-        r.innerHTML = `<div class="ready-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#E3DED2" stroke-width="7"/><circle class="ring" cx="50" cy="50" r="44" fill="none" stroke="#5B3DF5" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5"/></svg><div class="num"></div></div><div class="ready-txt">Get ready to answer!</div>`;
+        r.innerHTML = `<div class="ready-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" style="stroke:var(--line)" stroke-width="7"/><circle class="ring" cx="50" cy="50" r="44" fill="none" stroke="#5B3DF5" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5"/></svg><div class="num"></div></div><div class="ready-txt">Get ready to answer!</div>`;
         viz.appendChild(r);
         st.goAt = Date.now() + (data.readyIn || 0);
         const total = data.readyIn || 4000;
@@ -151,14 +190,14 @@
         loop();
       } else {
         const grid = document.createElement('div');
-        grid.className = 'quiz-grid' + (phase === 'run' ? ' running' : opts.host ? ' waiting' : '');
+        grid.className = 'quiz-grid' + (phase === 'run' ? ' running' : opts.host ? ' qwait' : '');
         grid.style.gridTemplateRows = `repeat(${Math.ceil(slide.options.length / 2)}, 1fr)`;
         grid.innerHTML = slide.options.map((o, i) => `<div class="quiz-opt" style="--c:${QUIZ_COLORS[i]};animation-delay:${i * 70}ms"><svg class="shape" viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${esc(o)}</span></div>`).join('');
         viz.appendChild(grid);
         if (phase === 'run') {
           const t = document.createElement('div');
           t.className = 'quiz-timer';
-          t.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#fff" stroke="#E3DED2" stroke-width="8"/><circle class="ring" cx="50" cy="50" r="44" fill="none" stroke="#5B3DF5" stroke-width="8" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="num">0</div>`;
+          t.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" style="stroke:var(--line)" stroke-width="8"/><circle class="ring" cx="50" cy="50" r="44" fill="none" stroke="#5B3DF5" stroke-width="8" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg><div class="num">0</div>`;
           viz.appendChild(t);
           const a = document.createElement('div'); a.className = 'quiz-answers'; viz.appendChild(a);
           st.endsAt = Date.now() + (data.remaining != null ? data.remaining : slide.time * 1000);
@@ -174,7 +213,7 @@
         } else if (opts.host) {
           const w = document.createElement('div');
           w.className = 'quiz-hint';
-          w.textContent = 'Press “⚡ Start quiz” when everyone is ready';
+          w.textContent = 'Press Start when everyone is ready';
           viz.appendChild(w);
         }
       }
@@ -186,12 +225,12 @@
     }
     if (phase === 'board') {
       if (!viz.querySelector('.board-title')) {
-        const t = document.createElement('div'); t.className = 'board-title'; t.textContent = '🏆 Leaderboard';
+        const t = document.createElement('div'); t.className = 'board-title'; t.textContent = 'Leaderboard';
         viz.appendChild(t);
         st.boardBox = document.createElement('div'); st.boardBox.className = 'board-box';
         viz.appendChild(st.boardBox);
       }
-      boardList(st.boardBox, st, data.board || [], { gains: true });
+      boardList(st.boardBox, st, (data.board || []).slice(0, 8), { gains: true, slots: 8 });
     }
     if (phase === 'reveal') {
       columns(viz, st, slide.options, data.counts, data.total, QUIZ_COLORS, (c, i) => {
@@ -253,7 +292,7 @@
       viz.appendChild(st.cloud);
       st.els = new Map();
     }
-    emptyHint(viz, !words.length, `<div><span class="wiggle">☁️</span><br>Waiting for words…</div>`);
+    emptyHint(viz, !words.length, `<div>${icon('wordcloud', 'big')}<br>Waiting for words…</div>`);
     const W = viz.clientWidth, H = viz.clientHeight;
     const sig = W + 'x' + H + JSON.stringify(words);
     if (sig === st.sig && !opts.force) return;
@@ -291,7 +330,7 @@
       viz.appendChild(st.wall);
       st.cards = new Map();
     }
-    emptyHint(viz, !items.length, `<div><span class="wiggle">💬</span><br>Responses will appear here</div>`);
+    emptyHint(viz, !items.length, `<div>${icon('open', 'big')}<br>Responses will appear here</div>`);
     const ids = new Set(items.map(i => i.id));
     for (const [id, el] of st.cards) if (!ids.has(id)) { el.remove(); st.cards.delete(id); }
     const fresh = items.filter(it => !st.cards.has(it.id));
@@ -336,7 +375,7 @@
       viz.appendChild(st.list);
       st.rows = new Map();
     }
-    const H = viz.clientHeight, gap = Math.max(6, H * 0.02);
+    const H = viz.clientHeight - 6, gap = Math.max(6, H * 0.02);
     const n = Math.max(1, cfg.slots || items.length);
     const rowH = Math.max(cfg.minH || 34, Math.min(cfg.maxH || H * 0.16, (H - gap * (n - 1)) / n));
     const keep = new Set();
@@ -392,7 +431,7 @@
       update: (el, it, i) => {
         const r = i + (o.offset || 0);
         el.className = 'ritem' + (r === 0 ? ' gold' : r === 1 ? ' silver' : r === 2 ? ' bronze' : '');
-        el.querySelector('.rk').textContent = ['🥇', '🥈', '🥉'][r] || r + 1;
+        el.querySelector('.rk').innerHTML = `<span class="rk-badge">${r + 1}</span>`;
         el.querySelector('.nm').textContent = it.name;
         el.querySelector('.mvbox').innerHTML = moveBadge(it.move);
         const g = el.querySelector('.gain'); if (g) g.textContent = it.gain ? '+' + it.gain : '';
@@ -402,12 +441,13 @@
     });
   }
 
-  R.leaderboard = function (viz, slide, data, st) {
+  R.leaderboard = function (viz, slide, data, st, opts) {
     const top = (data && data.top) || [];
-    emptyHint(viz, !top.length, `<div><span class="wiggle">🏆</span><br>No quiz scores yet — add Quiz slides before this one</div>`);
+    emptyHint(viz, !top.length, `<div>${icon('leaderboard', 'big')}<br>No quiz scores yet — add Quiz slides before this one</div>`);
     if (!st.pod) {
       viz.insertAdjacentHTML('beforeend', `<div class="lb-wrap"><div class="podium"></div><div class="lb-rest"></div></div>`);
       st.pod = viz.querySelector('.podium'); st.rest = viz.querySelector('.lb-rest');
+      if (opts && opts.noAnim) viz.querySelector('.lb-wrap').classList.add('still');
     }
     const three = top.slice(0, 3), rest = top.slice(3);
     viz.querySelector('.lb-wrap').classList.toggle('solo', !rest.length);
@@ -419,7 +459,7 @@
       st.pod.innerHTML = order.map(i => {
         const t = three[i];
         if (!t) return `<div class="pod p${i + 1} empty"></div>`;
-        return `<div class="pod p${i + 1}" style="animation-delay:${first ? [0.9, 1.6, 0.3][i] : 0}s"><div class="pod-name">${esc(t.name)}</div><div class="pod-score">${t.score.toLocaleString()}</div><div class="pod-block"><span>${['🥇', '🥈', '🥉'][i]}</span><b>${i + 1}</b></div></div>`;
+        return `<div class="pod p${i + 1}" style="animation-delay:${first ? [0.9, 1.6, 0.3][i] : 0}s"><div class="pod-name">${esc(t.name)}</div><div class="pod-score">${t.score.toLocaleString()} pts</div><div class="pod-block"><b>${i + 1}</b></div></div>`;
       }).join('');
     }
     boardList(st.rest, st, rest, { offset: 3, slots: 7, maxH: 60 });
@@ -448,16 +488,16 @@
       st.chips.prepend(el);
       st.chipEls.set(n.id, el);
     }
-    emptyHint(st.lobby.querySelector('.lobby-side'), !names.length, '<div><span class="wiggle">👋</span><br>Waiting for players…</div>');
+    emptyHint(st.lobby.querySelector('.lobby-side'), !names.length, `<div>${icon('lobby', 'big')}<br>Waiting for players…</div>`);
   };
 
   R.qa = function (viz, slide, data, st, opts) {
     const items = (data && data.items) || [];
-    emptyHint(viz, !items.length, `<div><span class="wiggle">🙋</span><br>No questions yet${opts.joinUrl ? `<br><small>Ask at ${esc(opts.joinUrl)}</small>` : ''}</div>`);
+    emptyHint(viz, !items.length, `<div>${icon('qa', 'big')}<br>No questions yet${opts.joinUrl ? `<br><small>Ask at ${esc(opts.joinUrl)}</small>` : ''}</div>`);
     rlist(viz, st, items.map(q => ({ key: q.id, ...q })), {
       slots: 6, minH: 46,
       build: (el, it) => {
-        el.innerHTML = `<div class="votes">▲ <span class="vc">0</span></div><div class="nm qa-text"></div>${opts.host ? '<button class="mark"></button>' : ''}`;
+        el.innerHTML = `<div class="votes">${icon('arrowup')} <span class="vc">0</span></div><div class="nm qa-text"></div>${opts.host ? '<button class="mark"></button>' : ''}`;
         if (opts.host) {
           el.querySelector('.mark').onclick = () => opts.onQaMark && opts.onQaMark(it.key, !el.classList.contains('answered'));
         }
@@ -479,7 +519,7 @@
     const r = i => [42, 28, 61, 17, 35, 24, 50, 12, 30, 22][i % 10];
     switch (slide.type) {
       case 'mc': return { counts: slide.options.map((_, i) => r(i)), total: slide.options.reduce((a, _, i) => a + r(i), 0) };
-      case 'quiz': return { counts: slide.options.map((_, i) => r(i)), total: 90, started: true, revealed: true, correct: slide.correct };
+      case 'quiz': return { counts: slide.options.map(() => 0), total: 0, started: false, revealed: false };
       case 'wordcloud': return { total: 40, words: ['ideas', 'energy', 'teamwork', 'fun', 'learning', 'growth', 'focus', 'creative', 'curious', 'bold', 'robots', 'coffee', 'future', 'code', 'friends'].map((w, i) => [w, Math.max(1, 14 - i), w]) };
       case 'open': return { total: 4, items: ['Love the live format!', 'Can we get the slides afterwards?', 'More hands-on demos please', 'Great session 🎉'].map((t, i) => ({ id: 'd' + i, text: t, t: i })) };
       case 'scale': return { total: 30, stats: slide.statements.map((_, i) => { const d = Array(slide.max).fill(0).map((_, k) => 2 + ((k * 7 + i * 3) % 9)); let s = 0, n = 0; d.forEach((c, k) => { s += c * (k + 1); n += c; }); return { avg: s / n, dist: d }; }) };
@@ -491,5 +531,10 @@
     }
   }
 
-  window.TBViz = { render, demoData, COLORS, QUIZ_COLORS, SHAPES, TYPE_META, esc, tween };
+  const hydrateIcons = root => (root || document).querySelectorAll('[data-ic]').forEach(el => {
+    if (!el.querySelector(':scope > svg.ic')) el.insertAdjacentHTML('afterbegin', icon(el.dataset.ic));
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => hydrateIcons()); else hydrateIcons();
+
+  window.TBViz = { hydrateIcons, render, demoData, COLORS, QUIZ_COLORS, SHAPES, TYPE_META, esc, tween, icon };
 })();

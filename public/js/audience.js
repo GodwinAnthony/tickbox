@@ -2,7 +2,8 @@
    TickBox audience (phone) app
    ============================================================ */
 (function () {
-  const { render, esc, QUIZ_COLORS, SHAPES } = window.TBViz;
+  const { render, esc, QUIZ_COLORS, SHAPES, icon } = window.TBViz;
+  const badge = (name, cls) => `<div class="badge-ic ${cls || ''}">${icon(name)}</div>`;
   const $ = s => document.querySelector(s);
   const main = $('#main');
   const LS = {
@@ -103,7 +104,7 @@
       answers = r.answers || {}; qaVotes = r.qaVotes || {};
       state = r.state; results = r.results;
       const who = $('#who');
-      who.textContent = '👤 ' + r.name; who.classList.remove('hidden');
+      who.innerHTML = icon('user') + '<span>' + esc(r.name) + '</span>'; who.classList.remove('hidden');
       $('#reactBar').classList.remove('hidden');
       draw(true);
     });
@@ -140,7 +141,7 @@
     document.querySelectorAll('.submit-bar').forEach(n => n.remove());
     if (state.ended) {
       $('#reactBar').classList.add('hidden');
-      main.innerHTML = `<div class="thanks" style="margin-top:8vh">${TICK}<h2>Thanks for taking part!</h2><p>The presentation has ended.</p><a class="btn" href="/" style="margin-top:22px">Back to TickBox</a></div>`;
+      main.innerHTML = `<div class="thanks" style="margin-top:8vh">${TICK}<h2>Thanks for taking part</h2><p>The presentation has ended.</p><a class="btn" href="/" style="margin-top:22px">Back to TickBox</a></div>`;
       return;
     }
     const s = state.slide;
@@ -151,8 +152,8 @@
 
   const header = (s, hint) => `<h1 class="aud-q">${esc(s.question)}</h1>${hint ? `<p class="aud-hint">${hint}</p>` : ''}`;
   const resultsBox = () => state.showOnPhones ? `<div class="phone-results"><div class="stage" id="phoneStage" style="position:absolute;inset:0"></div></div>` : '';
-  const thanks = (title, sub) => `<div class="thanks">${TICK}<h2>${title}</h2><p>${sub || 'Look at the screen to see the results 👀'}</p></div>`;
-  const closed = s => header(s) + `<div class="thanks"><div style="font-size:56px">🔒</div><h2>Voting is closed</h2><p>Wait for the presenter to continue</p></div>` + resultsBox();
+  const thanks = (title, sub) => `<div class="thanks">${TICK}<h2>${title}</h2><p>${sub || 'Look at the screen to see the results'}</p></div>`;
+  const closed = s => header(s) + `<div class="thanks">${badge('lock')}<h2>Voting is closed</h2><p>Wait for the presenter to continue</p></div>` + resultsBox();
 
   function submitBar(label, enabled, onClick) {
     const bar = document.createElement('div');
@@ -174,19 +175,19 @@
   const V = {};
 
   V.content = s => {
-    main.innerHTML = `<div class="waiting"><div><div style="font-size:56px">👀</div><h2>${esc(s.question || 'Look at the screen')}</h2><p>${s.body ? esc(s.body) : 'Get ready — the next question is coming up'}</p></div></div>`;
+    main.innerHTML = `<div class="waiting"><div>${badge('eye')}<h2>${esc(s.question || 'Look at the screen')}</h2><p>${s.body ? esc(s.body) : 'Get ready — the next question is coming up'}</p></div></div>`;
   };
 
   V.lobby = () => {
-    main.innerHTML = `<div class="waiting"><div><div style="font-size:56px">🎉</div><h2>You're in!</h2>
-      <div class="lobby-me">${esc(($('#who').textContent || '').replace('👤 ', ''))}</div>
+    main.innerHTML = `<div class="waiting"><div>${badge('party', 'mint')}<h2>You're in!</h2>
+      <div class="lobby-me">${esc($('#who').textContent || '')}</div>
       <p>Look for your name on the big screen.<br>The quiz starts soon — answer fast to score more!</p></div></div>`;
   };
 
   V.leaderboard = s => {
     const mine = Object.values(quizRes).sort((a, b) => b.total - a.total)[0];
     const last = Object.values(quizRes).pop();
-    main.innerHTML = `<div class="waiting"><div><div style="font-size:64px">🏆</div><h2>${esc(s.question || 'Leaderboard')}</h2>
+    main.innerHTML = `<div class="waiting"><div>${badge('leaderboard', 'amber')}<h2>${esc(s.question || 'Leaderboard')}</h2>
       ${last ? `<p style="font-size:18px;color:var(--ink)">You have <b>${last.total.toLocaleString()}</b> points${last.rank ? ` and you're <b>#${last.rank}</b> of ${last.of}` : ''}</p>` : '<p>Check the big screen!</p>'}</div></div>`;
     void mine;
   };
@@ -278,12 +279,12 @@
       if (res) {
         const cls = !res.answered ? 'none' : res.correct ? 'ok' : 'no';
         main.innerHTML = `<div class="result-card ${cls}">
-          <div style="font-size:54px">${!res.answered ? '⏰' : res.correct ? '🎉' : '😬'}</div>
+          <div class="rc-ic">${icon(!res.answered ? 'clock' : res.correct ? 'check' : 'x')}</div>
           <h2>${!res.answered ? 'Too slow!' : res.correct ? 'Correct!' : 'Not quite'}</h2>
           <div class="pts">+${res.points}</div>
           <p>Total: ${res.total.toLocaleString()} points</p>
           ${res.rank ? `<p>You're #${res.rank} of ${res.of}</p>` : ''}
-          ${res.move > 0 ? `<span class="move-pill">▲ up ${res.move} place${res.move > 1 ? 's' : ''}</span>` : res.move < 0 ? `<span class="move-pill">▼ down ${-res.move}</span>` : ''}</div>
+          ${res.move > 0 ? `<span class="move-pill">Up ${res.move} place${res.move > 1 ? 's' : ''}</span>` : res.move < 0 ? `<span class="move-pill">Down ${-res.move} place${res.move < -1 ? 's' : ''}</span>` : ''}</div>
           ${!res.correct ? `<p class="aud-hint" style="text-align:center;margin-top:16px">Correct answer: <b>${esc(s.options[s.correct])}</b></p>` : ''}`;
       } else {
         main.innerHTML = header(s) + `<p class="aud-hint">Correct answer: <b>${esc(s.options[s.correct])}</b></p>`;
@@ -291,7 +292,7 @@
       return;
     }
     if (!q.started) {
-      main.innerHTML = `<div class="waiting"><div><div class="big-go" style="font-size:44px">Get ready!</div><h2>${esc(s.question)}</h2><p>⚡ ${s.time} seconds · the faster you answer, the more points</p></div></div>`;
+      main.innerHTML = `<div class="waiting"><div>${badge('quiz', 'amber')}<h2>${esc(s.question)}</h2><p>${s.time} seconds · the faster you answer, the more points</p></div></div>`;
       return;
     }
     if (q.readyIn > 0) {
@@ -312,7 +313,7 @@
       return;
     }
     if (mine !== undefined) {
-      main.innerHTML = `<div class="waiting"><div><div style="font-size:60px">🔒</div><h2>Answer locked in</h2><p>You picked <b>${esc(s.options[mine])}</b>.<br>Waiting for the timer…</p></div></div>`;
+      main.innerHTML = `<div class="waiting"><div>${badge('lock')}<h2>Answer locked in</h2><p>You picked <b>${esc(s.options[mine])}</b>.<br>Waiting for the timer…</p></div></div>`;
       return;
     }
     const endsAt = Date.now() + (q.remaining || 0);
@@ -359,7 +360,7 @@
     const items = results.data.items || [];
     box.innerHTML = items.length ? items.map(q => `<div class="qa-item ${q.answered ? 'answered' : ''}">
         <div class="tx">${esc(q.text)}${q.name ? `<small>${esc(q.name)}</small>` : ''}${q.answered ? '<small>✓ Answered</small>' : ''}</div>
-        <button class="upvote ${voted.has(q.id) ? 'on' : ''}" data-id="${q.id}">▲<span>${q.votes}</span></button></div>`).join('')
+        <button class="upvote ${voted.has(q.id) ? 'on' : ''}" data-id="${q.id}">${icon('arrowup')}<span>${q.votes}</span></button></div>`).join('')
       : `<p class="aud-hint" style="text-align:center">No questions yet — be the first!</p>`;
     box.querySelectorAll('.upvote').forEach(b => b.onclick = () => {
       const id = b.dataset.id, on = !voted.has(id);

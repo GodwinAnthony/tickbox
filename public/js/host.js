@@ -2,7 +2,7 @@
    TickBox presenter: slide editor + live presentation mode
    ============================================================ */
 (function () {
-  const { render, demoData, COLORS, TYPE_META, esc } = window.TBViz;
+  const { render, demoData, COLORS, TYPE_META, esc, icon } = window.TBViz;
   const $ = s => document.querySelector(s);
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
   const LS_DECKS = 'tickbox.decks', LS_CUR = 'tickbox.current', LS_LIVE = 'tickbox.live';
@@ -28,8 +28,8 @@
       case 'scale': return { ...base, question: question || 'How much do you agree?', statements: ['The content was useful', 'The pace was right'], max: 5, minLabel: 'Strongly disagree', maxLabel: 'Strongly agree' };
       case 'ranking': return { ...base, question: question || 'Rank these in order of priority', options: ['First item', 'Second item', 'Third item'] };
       case 'quiz': return { ...base, question: question || 'Quiz question?', options: ['Right answer', 'Wrong answer', 'Another wrong one', 'Nope'], correct: 0, time: 20 };
-      case 'leaderboard': return { ...base, question: question || 'Final leaderboard 🏆' };
-      case 'lobby': return { ...base, question: question || 'Join the quiz! 🎉' };
+      case 'leaderboard': return { ...base, question: question || 'Final leaderboard' };
+      case 'lobby': return { ...base, question: question || 'Join the quiz' };
       case 'qa': return { ...base, question: question || 'Ask me anything' };
       case 'content': return { ...base, question: question || 'Heading', body: '' };
     }
@@ -80,18 +80,64 @@
   save();
 
   /* ---------------- editor rendering ---------------- */
+  const THEMES = { light: 'Light', white: 'White', dark: 'Dark', midnight: 'Midnight' };
+  const themeOf = d => (d && d.settings && THEMES[d.settings.theme]) ? d.settings.theme : 'light';
+  const setTheme = (el, t) => { el.className = el.className.replace(/\btheme-\w+/g, '').trim() + ' theme-' + t; };
+  const qrUrl = () => '/api/qr?text=' + encodeURIComponent(location.origin + '/join');
+  let panelTab = 'edit';
+
   function renderAll() {
     $('#deckTitle').value = deck.title;
-    renderList(); renderProps(); renderPreview();
+    setTheme($('#canvas'), themeOf(deck));
+    $('#stripHost').textContent = location.host + '/join';
+    renderList(); renderPanel(); renderPreview();
+  }
+
+  function renderPanel() {
+    document.querySelectorAll('.ptab').forEach(b => b.classList.toggle('on', b.dataset.tab === panelTab));
+    $('#panelTitle').textContent = panelTab === 'edit' ? 'Edit' : 'Design & settings';
+    if (panelTab === 'edit') renderProps(); else renderDesign();
+  }
+
+  function renderDesign() {
+    const t = themeOf(deck);
+    $('#props').innerHTML = `
+      <div class="field"><label>Slide theme</label>
+        <div class="themes">${Object.entries(THEMES).map(([k, n]) => `<button class="theme-sw ${k === t ? 'on' : ''}" data-theme="${k}"><span class="sw theme-${k}"><b>Aa</b><i></i><i></i><i></i></span><span class="sw-name">${n}</span></button>`).join('')}</div></div>
+      <div class="field"><label>Participants</label>
+        <label class="switch"><input type="checkbox" id="sNames" ${deck.settings.askNames ? 'checked' : ''}><span class="track"></span>Ask for a name</label>
+        <p class="hint">Quizzes always ask for a nickname so the leaderboard can show it.</p></div>
+      <div class="field"><label>Presentation</label>
+        <button class="link-btn" id="dDecks">${icon('folder')} My presentations</button><br>
+        <button class="link-btn" id="dBulk">${icon('paste')} Paste many quiz questions</button></div>`;
+    $('#props').querySelectorAll('[data-theme]').forEach(b => b.onclick = () => {
+      deck.settings.theme = b.dataset.theme; save(); renderAll();
+    });
+    $('#sNames').onchange = e => { deck.settings.askNames = e.target.checked; save(); };
+    $('#dDecks').onclick = () => $('#btnDecks').click();
+    $('#dBulk').onclick = openBulk;
+  }
+
+  function renderThumb(i) {
+    const st = document.querySelector(`.thumb[data-i="${i}"] .stage`);
+    if (!st || !deck.slides[i]) return;
+    const fr = st.parentElement;
+    fr.style.setProperty('--s', (fr.clientWidth || 180) / 960);
+    st._tb = null;
+    render(st, deck.slides[i], demoData(deck.slides[i]), { noAnim: true, joinUrl: location.host + '/join', qrSrc: qrUrl(), code: '123 456' });
   }
 
   function renderList() {
     const list = $('#slideList');
+    const th = themeOf(deck);
     list.innerHTML = deck.slides.map((s, i) => `
-      <div class="thumb ${i === sel ? 'active' : ''}" data-i="${i}" draggable="true">
-        <div class="n">${i + 1}</div>
-        <div><div class="t-type">${TYPE_META[s.type].icon} ${TYPE_META[s.type].name}</div><div class="t-q">${esc(s.question || '—')}</div></div>
-      </div>`).join('') + '<button class="add-slide" id="addSlide">＋ New slide</button>';
+      <div class="thumb ${i === sel ? 'active' : ''}" data-i="${i}" draggable="true" title="${esc(TYPE_META[s.type].name)}">
+        <span class="n">${i + 1}<span class="t-ic t-${s.type}">${icon(s.type)}</span></span>
+        <div class="thumb-frame theme-${th}"><div class="stage"></div></div>
+      </div>`).join('');
+    deck.slides.forEach((_, i) => renderThumb(i));
+    const act = list.querySelector('.thumb.active');
+    if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
     list.querySelectorAll('.thumb').forEach(el => {
       const i = +el.dataset.i;
       el.onclick = () => { sel = i; renderAll(); };
@@ -107,21 +153,22 @@
         sel = i; save(); renderAll();
       };
     });
-    $('#addSlide').onclick = openTypePicker;
   }
+  $('#addSlide').onclick = () => openTypePicker();
 
   function renderPreview() {
     const s = deck.slides[sel];
     if (!s) return;
-    render($('#previewStage'), s, demoData(s), { noAnim: true, host: false, joinUrl: location.host + '/join', qrSrc: '/api/qr?text=' + encodeURIComponent(location.origin + '/join') });
+    render($('#previewStage'), s, demoData(s), { noAnim: true, host: false, joinUrl: location.host + '/join', qrSrc: qrUrl(), code: '123 456' });
+    $('#canvas').querySelector('.join-strip').classList.toggle('hidden', s.type === 'lobby');
   }
+  let thumbT;
 
   function updateSlide(patch, opts) {
     Object.assign(deck.slides[sel], patch);
     save();
     renderPreview();
-    const t = document.querySelector(`.thumb[data-i="${sel}"] .t-q`);
-    if (t) t.textContent = deck.slides[sel].question || '—';
+    clearTimeout(thumbT); const i = sel; thumbT = setTimeout(() => renderThumb(i), 250);
     if (opts && opts.props) renderProps();
   }
 
@@ -132,32 +179,39 @@
       <div class="opt-row">
         <span class="dot" style="background:${(opts.colors || COLORS)[i % (opts.colors || COLORS).length]}"></span>
         <input class="input" data-k="${key}" data-i="${i}" value="${esc(o)}" maxlength="120">
-        ${opts.correct ? `<button class="correct ${s.correct === i ? 'on' : ''}" data-correct="${i}" title="Mark as correct">✓</button>` : ''}
-        <button class="btn ghost icon sm rm" data-rm="${key}" data-i="${i}" title="Remove" ${arr.length <= (opts.min || 1) ? 'disabled' : ''}>✕</button>
+        ${opts.correct ? `<button class="correct ${s.correct === i ? 'on' : ''}" data-correct="${i}" title="${s.correct === i ? 'Correct answer' : 'Mark as correct'}">${icon('check')}</button>` : ''}
+        <button class="rm" data-rm="${key}" data-i="${i}" title="Remove" ${arr.length <= (opts.min || 1) ? 'disabled' : ''}>${icon('x')}</button>
       </div>`).join('');
     return `<div class="field"><label>${label}</label>${rows}
-      ${arr.length < (opts.max || 10) ? `<button class="btn sm" data-add="${key}">＋ Add ${opts.noun || 'option'}</button>` : ''}</div>`;
+      ${arr.length < (opts.max || 10) ? `<button class="link-btn" data-add="${key}">${icon('plus')} Add ${opts.noun || 'option'}</button>` : ''}</div>`;
   }
 
   function renderProps() {
     const s = deck.slides[sel];
     const p = $('#props');
     if (!s) { p.innerHTML = ''; return; }
-    let h = `<h3>Slide ${sel + 1} · ${TYPE_META[s.type].name}</h3>
-      <div class="label" style="margin-bottom:8px">Slide type</div>
-      <div class="type-select">${Object.entries(TYPE_META).map(([t, m]) => `<button class="type-chip ${t === s.type ? 'active' : ''}" data-type="${t}">${m.icon} ${m.name}</button>`).join('')}</div>
+    let h = `<div class="props-head"><span class="props-title">Slide ${sel + 1}</span>
+        <div class="icon-row">
+          <button class="ibtn" id="aUp" title="Move up" ${sel === 0 ? 'disabled' : ''}>${icon('up')}</button>
+          <button class="ibtn" id="aDown" title="Move down" ${sel === deck.slides.length - 1 ? 'disabled' : ''}>${icon('down')}</button>
+          <button class="ibtn" id="aDup" title="Duplicate">${icon('copy')}</button>
+          <button class="ibtn danger" id="aDel" title="Delete" ${deck.slides.length <= 1 ? 'disabled' : ''}>${icon('trash')}</button>
+        </div></div>
+      <div class="field"><label>Type</label>
+        <div class="dd"><button class="dd-btn" id="pType"><span class="t-ic t-${s.type}">${icon(s.type)}</span><span class="dd-name">${TYPE_META[s.type].name}</span>${icon('down', 'chev')}</button>
+        <div class="dd-menu hidden" id="pTypeMenu">${Object.entries(TYPE_META).map(([t, m]) => `<button class="dd-item ${t === s.type ? 'on' : ''}" data-type="${t}"><span class="t-ic t-${t}">${icon(t)}</span><span><b>${m.name}</b><small>${m.desc}</small></span></button>`).join('')}</div></div></div>
       <div class="field"><label>${s.type === 'content' ? 'Heading' : s.type === 'leaderboard' ? 'Title' : 'Question'}</label>
         <textarea class="input" id="pQ" rows="2" maxlength="300" style="min-height:64px">${esc(s.question)}</textarea></div>`;
     switch (s.type) {
       case 'mc':
         h += listEditor('Options', 'options', s, { min: 2 });
-        h += `<label class="switch" style="margin-bottom:12px"><input type="checkbox" id="pMulti" ${s.multiple ? 'checked' : ''}><span class="track"></span>Allow choosing multiple options</label>`;
+        h += `<label class="switch"><input type="checkbox" id="pMulti" ${s.multiple ? 'checked' : ''}><span class="track"></span>Allow multiple choices</label>`;
         break;
       case 'quiz':
-        h += listEditor('Answers — tick the correct one', 'options', s, { min: 2, max: 6, correct: true, colors: window.TBViz.QUIZ_COLORS, noun: 'answer' });
+        h += listEditor('Answers', 'options', s, { min: 2, max: 6, correct: true, colors: window.TBViz.QUIZ_COLORS, noun: 'answer' });
         h += `<div class="field"><label>Time limit</label><select class="input" id="pTime">${[5, 10, 15, 20, 30, 45, 60, 90].map(t => `<option value="${t}" ${s.time === t ? 'selected' : ''}>${t} seconds</option>`).join('')}</select></div>
-          <p class="preview-note" style="margin-top:0">⚡ Correct answers score <b>500–1000 points</b> — the faster the tap, the more points. Wrong or no answer = 0. A 4-second “get ready” countdown runs before the answers appear.</p>
-          <button class="btn sm" id="pBulk">📋 Paste many questions at once</button>`;
+          <p class="hint">Tick the correct answer. Correct answers score 500–1000 points: the faster, the more.</p>
+          <button class="link-btn" id="pBulk">${icon('paste')} Paste many questions at once</button>`;
         break;
       case 'ranking':
         h += listEditor('Items to rank', 'options', s, { min: 2, noun: 'item' });
@@ -178,23 +232,21 @@
         h += `<div class="field"><label>Body text</label><textarea class="input" id="pBody" maxlength="800">${esc(s.body || '')}</textarea></div>`;
         break;
       case 'leaderboard':
-        h += `<p class="preview-note">Final podium for the top 3, plus places 4–10 with rank changes. Every Quiz slide also shows its own leaderboard after the answer is revealed.</p>`;
+        h += `<p class="hint">Podium for the top 3 and places 4–10. Each quiz question also shows a leaderboard after its answer.</p>`;
         break;
       case 'lobby':
-        h += `<p class="preview-note">A waiting room: big QR code and join code, and players' names pop up as they join. Put it first in a quiz.</p>`;
+        h += `<p class="hint">Shows the QR code and join code while players' names pop in. Put it first.</p>`;
         break;
       case 'qa':
-        h += `<p class="preview-note">The audience types questions and upvotes each other's. Most-voted questions rise to the top; mark them answered as you go.</p>`;
+        h += `<p class="hint">The audience asks and upvotes questions. Top-voted rise to the top.</p>`;
         break;
     }
-    h += `<div class="actions">
-      <button class="btn sm" id="aUp" ${sel === 0 ? 'disabled' : ''}>↑ Up</button>
-      <button class="btn sm" id="aDown" ${sel === deck.slides.length - 1 ? 'disabled' : ''}>↓ Down</button>
-      <button class="btn sm" id="aDup">⧉ Duplicate</button>
-      <button class="btn sm danger" id="aDel" ${deck.slides.length <= 1 ? 'disabled' : ''}>🗑 Delete</button></div>`;
     p.innerHTML = h;
+    const menu = $('#pTypeMenu');
+    $('#pType').onclick = e => { e.stopPropagation(); menu.classList.toggle('hidden'); };
 
     p.querySelectorAll('[data-type]').forEach(b => b.onclick = () => {
+      menu.classList.add('hidden');
       if (b.dataset.type === s.type) return;
       const ns = newSlide(b.dataset.type, s.question);
       ns.id = s.id;
@@ -269,7 +321,7 @@
   }
 
   function openBulk() {
-    const m = modal(`<h3>📋 Paste quiz questions</h3>
+    const m = modal(`<h3>Paste quiz questions</h3>
       <p class="preview-note" style="margin:-6px 0 12px">One question per block, blank line between questions. Put a <b>*</b> in front of the correct answer (2–6 answers each).</p>
       <textarea class="input" id="bText" style="min-height:220px;font-family:ui-monospace,monospace;font-size:13px" placeholder="What does CPU stand for?
 *Central Processing Unit
@@ -312,8 +364,8 @@ Jupiter"></textarea>
   }
 
   function openTypePicker() {
-    const m = modal(`<h3>Add a slide</h3><div class="type-grid">${Object.entries(TYPE_META).map(([t, x]) => `<button class="type-card" data-t="${t}"><div class="ic">${x.icon}</div><b>${x.name}</b><span>${x.desc}</span></button>`).join('')}</div>
-      <button class="btn block" id="tBulk" style="margin-top:14px">📋 Paste many quiz questions at once</button>`);
+    const m = modal(`<h3>Add a slide</h3><div class="type-grid">${Object.entries(TYPE_META).map(([t, x]) => `<button class="type-card" data-t="${t}"><span class="t-ic t-${t}">${icon(t)}</span><b>${x.name}</b><span>${x.desc}</span></button>`).join('')}</div>
+      <button class="link-btn" id="tBulk" style="margin-top:16px">${icon('paste')} Paste many quiz questions at once</button>`);
     m.querySelector('#tBulk').onclick = () => { m.remove(); openBulk(); };
     m.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
       deck.slides.splice(sel + 1, 0, newSlide(b.dataset.t)); sel++; save(); renderAll(); m.remove();
@@ -324,12 +376,12 @@ Jupiter"></textarea>
   $('#btnDecks').onclick = () => {
     const list = Object.values(decks).sort((a, b) => b.updated - a.updated);
     const m = modal(`<h3>My presentations</h3>
-      <div class="deck-list">${list.map(d => `<div class="deck-item" data-id="${d.id}"><div class="meta"><b>${esc(d.title)}</b><small>${d.slides.length} slides · edited ${new Date(d.updated).toLocaleString()}</small></div>${d.id === deck.id ? '<span class="progress-mini">Open</span>' : ''}<button class="btn ghost sm danger" data-del="${d.id}" title="Delete">🗑</button></div>`).join('')}</div>
+      <div class="deck-list">${list.map(d => `<div class="deck-item" data-id="${d.id}"><div class="meta"><b>${esc(d.title)}</b><small>${d.slides.length} slides · edited ${new Date(d.updated).toLocaleString()}</small></div>${d.id === deck.id ? '<span class="progress-mini">Open</span>' : ''}<button class="ibtn danger" data-del="${d.id}" title="Delete">${icon('trash')}</button></div>`).join('')}</div>
       <div class="row" style="margin-top:16px;flex-wrap:wrap">
-        <button class="btn primary" id="mQuiz">⚡ New quiz</button>
-        <button class="btn" id="mNew">＋ New blank</button>
-        <button class="btn" id="mExport">⤓ Download this one (.json)</button>
-        <label class="btn" style="cursor:pointer">⤒ Import .json<input type="file" accept=".json,application/json" id="mImport" hidden></label>
+        <button class="btn primary" id="mQuiz">${icon('quiz')} New quiz</button>
+        <button class="btn" id="mNew">${icon('plus')} New blank</button>
+        <button class="btn" id="mExport">${icon('download')} Export .json</button>
+        <label class="btn" style="cursor:pointer">${icon('paste')} Import .json<input type="file" accept=".json,application/json" id="mImport" hidden></label>
       </div>
       <p class="preview-note" style="margin-top:14px">Presentations are saved in this browser. Download a .json copy to move them to another computer.</p>`);
     m.querySelectorAll('.deck-item').forEach(el => el.onclick = e => {
@@ -368,14 +420,37 @@ Jupiter"></textarea>
     };
   };
 
-  $('#btnSettings').onclick = () => {
-    const m = modal(`<h3>Settings</h3>
-      <label class="switch"><input type="checkbox" id="sNames" ${deck.settings.askNames ? 'checked' : ''}><span class="track"></span>Ask participants for their name</label>
-      <p class="preview-note" style="margin:8px 0 0 50px">Names show on open-ended answers and Q&amp;A. Presentations with a quiz always ask for a nickname.</p>
-      <div style="margin-top:22px;text-align:right"><button class="btn primary" id="sDone">Done</button></div>`);
-    m.querySelector('#sNames').onchange = e => { deck.settings.askNames = e.target.checked; save(); };
-    m.querySelector('#sDone').onclick = () => m.remove();
+  document.querySelectorAll('.ptab').forEach(b => b.onclick = () => { panelTab = b.dataset.tab; renderPanel(); });
+  document.querySelectorAll('#quickAdd [data-q]').forEach(b => b.onclick = () => {
+    if (b.dataset.q === 'more') return openTypePicker();
+    deck.slides.splice(sel + 1, 0, newSlide(b.dataset.q)); sel++; panelTab = 'edit'; save(); renderAll();
+    setTimeout(() => { const q = $('#pQ'); if (q) { q.focus(); q.select(); } }, 50);
+  });
+  $('#qaPaste').onclick = () => openBulk();
+
+  /* ---------------- preview (no audience) ---------------- */
+  let pvIndex = -1;
+  function drawPv() {
+    const s = deck.slides[pvIndex];
+    const stg = $('#pvStage'); stg._tb = null;
+    render(stg, s, demoData(s), { joinUrl: location.host + '/join', qrSrc: qrUrl(), code: '123 456' });
+    $('#pvPos').textContent = `${pvIndex + 1} / ${deck.slides.length}`;
+    $('#pvPrev').disabled = pvIndex === 0; $('#pvNext').disabled = pvIndex === deck.slides.length - 1;
+  }
+  function closePv() { pvIndex = -1; $('#pv').classList.add('hidden'); document.body.style.overflow = ''; }
+  $('#btnPreview').onclick = () => {
+    pvIndex = sel; setTheme($('#pv'), themeOf(deck));
+    $('#pv').classList.remove('hidden'); document.body.style.overflow = 'hidden'; drawPv();
   };
+  $('#pvPrev').onclick = () => { if (pvIndex > 0) { pvIndex--; drawPv(); } };
+  $('#pvNext').onclick = () => { if (pvIndex < deck.slides.length - 1) { pvIndex++; drawPv(); } };
+  $('#pvClose').onclick = closePv;
+  document.addEventListener('keydown', e => {
+    if (pvIndex < 0) return;
+    if (e.key === 'Escape') closePv();
+    else if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); $('#pvNext').click(); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); $('#pvPrev').click(); }
+  });
 
   $('#deckTitle').oninput = e => { deck.title = e.target.value; save(); };
 
@@ -416,6 +491,7 @@ Jupiter"></textarea>
 
   function openPresent(snapshot) {
     $('#present').classList.remove('hidden');
+    setTheme($('#present'), themeOf(snapshot.deck));
     document.body.style.overflow = 'hidden';
     $('#joinHost').textContent = location.host + '/join';
     $('#joinCode').textContent = prettyCode(live.code);
@@ -471,22 +547,24 @@ Jupiter"></textarea>
     $('#cPrev').disabled = snap.index === 0;
     const qs = slide.type === 'quiz' ? (!st.startedAt ? 'start' : !st.revealed ? 'run' : !st.showBoard ? 'reveal' : 'board') : null;
     const last = snap.index >= snap.deck.slides.length - 1;
-    $('#cNext').textContent = qs === 'start' ? '⚡ Start ›' : qs === 'run' ? 'Reveal ›' : qs === 'reveal' ? '🏆 Leaderboard ›' : 'Next ›';
+    $('#cNext').innerHTML = (qs === 'start' ? 'Start quiz' : qs === 'run' ? 'Reveal' : qs === 'reveal' ? 'Leaderboard' : 'Next') + icon('right');
     $('#cNext').disabled = last && (!qs || qs === 'board');
     const votable = !['content', 'leaderboard', 'lobby'].includes(slide.type);
     const q = $('#cQuiz');
     q.classList.toggle('hidden', slide.type !== 'quiz');
     if (slide.type === 'quiz') {
-      q.textContent = !st.startedAt ? '⚡ Start quiz' : !st.revealed ? '⏭ Reveal now' : '↻ Run again';
       q.classList.toggle('hidden', !st.revealed);
     }
     $('#cOpen').classList.toggle('hidden', !votable || slide.type === 'quiz');
-    $('#cOpen').textContent = st.open ? '🔓 Voting open' : '🔒 Voting closed';
+    $('#cOpen').innerHTML = icon(st.open ? 'unlock' : 'lock');
+    $('#cOpen').title = st.open ? 'Voting is open — click to close' : 'Voting is closed — click to open';
     $('#cOpen').classList.toggle('on', !st.open);
+    $('#cHide').innerHTML = icon(snap.hideResults ? 'eyeoff' : 'eye');
+    $('#cHide').title = snap.hideResults ? 'Show results (H)' : 'Hide results (H)';
     $('#cHide').classList.toggle('hidden', !votable);
     $('#cHide').classList.toggle('on', !!snap.hideResults);
     $('#cPhones').classList.toggle('on', !!snap.showOnPhones);
-    $('#cReset').classList.toggle('hidden', !votable);
+    $('#cReset').classList.toggle('hidden', !votable || slide.type === 'quiz');
   }
 
   socket.on('host:state', s => { if (live && s.code === live.code) applySnapshot(s); });
@@ -573,6 +651,8 @@ Jupiter"></textarea>
     document.body.appendChild(el);
   }
   $('#joinbar').onclick = showBigQR;
+  $('#cQR').onclick = showBigQR;
+  document.addEventListener('click', e => { const m = $('#pTypeMenu'); if (m && !e.target.closest('.dd')) m.classList.add('hidden'); });
 
   function poke() {
     const p = $('#present'); p.classList.remove('idle');
@@ -580,6 +660,7 @@ Jupiter"></textarea>
   }
   document.addEventListener('mousemove', () => { if (live) poke(); });
   $('#controls').addEventListener('mouseenter', () => clearTimeout(idleT));
+  window.TBViz.hydrateIcons();
 
   document.addEventListener('keydown', e => {
     if (!live || e.target.matches('input, textarea, select')) return;
@@ -597,6 +678,8 @@ Jupiter"></textarea>
     clearTimeout(rt);
     rt = setTimeout(() => {
       ['#presentStage', '#previewStage'].forEach(id => { const el = $(id); if (el._tb) el._tb.sig = null; });
+      deck.slides.forEach((_, i) => renderThumb(i));
+      if (pvIndex >= 0) drawPv();
       if (snap) { $('#presentStage')._tb = null; drawStage(); }
       $('#previewStage')._tb = null; renderPreview();
     }, 200);
