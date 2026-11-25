@@ -335,7 +335,7 @@ function computeResults(room, slide, forAudience = false) {
     }
     case 'lobby': {
       const names = [];
-      for (const [pid, p] of room.participants) if (p.sockets.size) names.push({ id: shortId(pid), name: p.name, t: p.joinedAt });
+      for (const [pid, p] of room.participants) if (p.sockets.size) names.push({ id: shortId(pid), name: p.name, t: p.joinedAt, av: avatarOf(pid) });
       names.sort((a, b) => b.t - a.t);
       return { names: names.slice(0, 120), total: names.length };
     }
@@ -345,6 +345,8 @@ function computeResults(room, slide, forAudience = false) {
 }
 
 const shortId = pid => crypto.createHash('sha1').update(pid).digest('hex').slice(0, 10);
+const AVATAR_COUNT = 24;
+const avatarOf = pid => parseInt(shortId(pid).slice(0, 6), 16) % AVATAR_COUNT;
 
 function rankMap(tot) {
   const ranked = [...tot.entries()].sort((a, b) => b[1] - a[1]);
@@ -354,7 +356,7 @@ function rankMap(tot) {
 function boardData(room, prevRank, gain, limit = 10) {
   const tot = totalScores(room);
   return [...tot.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([pid, s], i) => ({
-    id: shortId(pid), name: nameOf(room, pid), score: s,
+    id: shortId(pid), name: nameOf(room, pid), score: s, av: avatarOf(pid),
     gain: gain ? (gain.get(pid) || 0) : 0,
     move: prevRank && prevRank.has(pid) ? prevRank.get(pid) - (i + 1) : null,
   }));
@@ -616,7 +618,7 @@ io.on('connection', socket => {
     const mine = myAnswers(room, pid);
     const slide = currentSlide(room);
     cb({
-      ok: true, pid, name: part.name, state: audState(room), ...mine,
+      ok: true, pid, name: part.name, av: avatarOf(pid), state: audState(room), ...mine,
       results: (room.showOnPhones || slide.type === 'qa') ? { slideId: slide.id, data: computeResults(room, slide, true) } : null,
     });
   });
