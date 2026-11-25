@@ -11,9 +11,38 @@
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-<div class="editor" id="editor">
+<div class="home hidden" id="home">
+  <header class="home-top">
+    <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="logo-word">tick<b>box</b></span></a>
+    <a class="btn ghost sm" href="/join" data-ic="phone">Join a presentation</a>
+  </header>
+  <main class="home-main">
+    <h1 class="home-h1">Create a presentation</h1>
+    <div class="create-row">
+      <button class="create-card primary-card" id="hBlank">
+        <span class="cc-ic" data-ic="plus"></span>
+        <span><b>Start from scratch</b><small>A blank presentation. Add quizzes, polls or any slide you like.</small></span>
+      </button>
+      <button class="create-card" id="hPaste">
+        <span class="cc-ic amber" data-ic="paste"></span>
+        <span><b>Paste quiz questions</b><small>Turn a list of questions into a ready quiz with lobby and leaderboard.</small></span>
+      </button>
+      <label class="create-card" id="hImport">
+        <span class="cc-ic sky" data-ic="download"></span>
+        <span><b>Import a file</b><small>Open a TickBox .json file you exported before.</small></span>
+        <input type="file" accept=".json,application/json" id="hImportFile" hidden>
+      </label>
+    </div>
+    <div class="home-sec"><h2>Start from a template</h2></div>
+    <div class="tpl-grid" id="tplGrid"></div>
+    <div class="home-sec"><h2>Your presentations</h2><span class="home-note">Saved in this browser · export a .json to move them</span></div>
+    <div class="deck-grid" id="deckGrid"></div>
+  </main>
+</div>
+
+<div class="editor hidden" id="editor">
   <header class="topbar">
-    <a class="ibtn back" href="/" title="TickBox home" data-ic="left"></a>
+    <button class="ibtn back" id="btnHome" title="All presentations" data-ic="left"></button>
     <span class="logo-mark mini"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     <div class="title-wrap">
       <input class="title-input" id="deckTitle" placeholder="Presentation title" aria-label="Presentation title">
