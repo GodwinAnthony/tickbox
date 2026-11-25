@@ -13,7 +13,10 @@
   const toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2400); };
   const TICK = `<div class="tick"><svg width="46" height="46" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
 
-  let code = (new URLSearchParams(location.search).get('code') || '').replace(/\D/g, '');
+  const qs = new URLSearchParams(location.search);
+  let code = (qs.get('code') || '').replace(/\D/g, '');
+  let pin = (qs.get('p') || '').replace(/\D/g, '').slice(0, 4);
+  let roomInfo = null, joinedOnce = false, retryT = null, kicked = false;
   let pid = LS.get('tickbox.pid', null);
   let name = LS.get('tickbox.name', '');
   let socket = null;
@@ -58,15 +61,25 @@
     let info;
     try {
       const r = await fetch('/api/room/' + code);
+      if (r.status === 429) return codeScreen((await r.json()).error);
       if (!r.ok) return codeScreen('No live presentation with that code');
       info = await r.json();
     } catch (_) { return codeScreen('Could not reach the server'); }
+    roomInfo = info;
     const askedKey = 'tickbox.asked.' + code;
+    if (info.locked && !LS.get(askedKey, false)) return stopScreen('lock', 'This session is locked', 'The presenter is not letting new people in right now. Ask them to unlock it, then try again.', true);
     if (!LS.get(askedKey, false)) return nameScreen(info, askedKey);
     connect();
   }
 
-  function nameScreen(info, askedKey) {
+  function stopScreen(ic, title, sub, retry) {
+    $('#reactBar').classList.add('hidden');
+    main.innerHTML = `<div class="waiting"><div>${badge(ic, 'amber')}<h2>${esc(title)}</h2><p>${esc(sub)}</p>${retry ? '<button class="btn primary" id="stRetry" style="margin-top:18px">Try again</button>' : ''}</div></div>`;
+    const b = $('#stRetry'); if (b) b.onclick = () => start();
+  }
+
+  function nameScreen(info, askedKey, err) {
+    const needPin = info.needPin && !pin;
     main.innerHTML = `
       <div style="margin-top:6vh">
         <p class="aud-hint" style="margin:0">Joining</p>
@@ -74,19 +87,24 @@
         <form id="f" autocomplete="off" style="margin-top:20px">
           <div class="field"><label>Your name or nickname</label>
           <input class="input" id="n" maxlength="30" placeholder="e.g. Asha" value="${esc(name)}" style="font-size:18px;padding:16px"></div>
-          <div class="err" id="nErr"></div>
+          ${needPin ? `<div class="field"><label>PIN</label><input class="input code-input" id="pinIn" inputmode="numeric" maxlength="4" placeholder="4 digits" style="font-size:22px;padding:14px"><p class="aud-hint" style="margin:6px 0 0">The presenter will tell you the PIN.</p></div>` : ''}
+          <div class="err" id="nErr">${esc(err || '')}</div>
           <button class="btn primary block" style="padding:16px">Let's go →</button>
           ${info.askNames ? '<p class="aud-hint" style="text-align:center;margin-top:14px">Your name shows on the leaderboard and with your reactions</p>'
             : '<button type="button" class="btn ghost block" id="nSkip" style="margin-top:8px">Skip — join without a name</button><p class="aud-hint" style="text-align:center;margin-top:10px">Your name shows with your reactions on the big screen</p>'}
         </form>
       </div>`;
     $('#n').focus();
+    const pinIn = $('#pinIn');
+    if (pinIn) pinIn.oninput = () => { pinIn.value = pinIn.value.replace(/\D/g, '').slice(0, 4); };
     const skip = $('#nSkip');
-    if (skip) skip.onclick = () => { name = ''; LS.set(askedKey, true); connect(); };
+    const readPin = () => { if (!pinIn) return true; pin = pinIn.value; if (pin.length !== 4) { $('#nErr').textContent = 'Enter the 4-digit PIN'; return false; } return true; };
+    if (skip) skip.onclick = () => { if (!readPin()) return; name = ''; LS.set(askedKey, true); connect(); };
     $('#f').onsubmit = e => {
       e.preventDefault();
       name = $('#n').value.trim().slice(0, 30);
       if (!name && info.askNames) { $('#nErr').textContent = 'Please enter a name or nickname'; return; }
+      if (!readPin()) return;
       LS.set('tickbox.name', name);
       LS.set(askedKey, true);
       connect();
@@ -102,12 +120,38 @@
     socket.on('aud:state', s => { state = s; if (results && results.slideId !== s.slide.id) results = null; draw(); });
     socket.on('aud:results', r => { results = r; updateResults(); });
     socket.on('aud:quizResult', r => { quizRes[r.slideId] = r; draw(true); });
+    socket.on('aud:kicked', () => {
+      kicked = true; clearTimeout(retryT);
+      socket.disconnect(); socket = null;
+      stopScreen('x', 'You were removed', 'The presenter removed you from this session.');
+    });
     socket.on('aud:reset', r => { delete answers[r.slideId]; delete quizRes[r.slideId]; qaVotes[r.slideId] = []; draft = {}; draw(true); });
   }
 
   function join() {
-    socket.emit('aud:join', { code, pid, name }, r => {
-      if (!r || !r.ok) { socket.disconnect(); socket = null; return codeScreen((r && r.error) || 'Could not join'); }
+    if (kicked) return;
+    clearTimeout(retryT);
+    socket.emit('aud:join', { code, pid, name, pin }, r => {
+      if (!r || !r.ok) {
+        const why = r && r.reason;
+        // the server restarted: wait for the presenter's screen to bring the session back
+        if (why === 'noroom' && joinedOnce) {
+          main.innerHTML = `<div class="waiting"><div><div class="dots"><span></span><span></span><span></span></div><h2>Reconnecting…</h2><p>Hang on — the session is coming back. Your score is safe.</p></div></div>`;
+          retryT = setTimeout(join, 3000);
+          return;
+        }
+        socket.disconnect(); socket = null;
+        const askedKey = 'tickbox.asked.' + code;
+        if (why === 'pin' || why === 'badname') {
+          LS.set(askedKey, false);
+          if (why === 'pin') pin = '';
+          return nameScreen(roomInfo || { title: 'TickBox', needPin: why === 'pin' }, askedKey, r.error);
+        }
+        if (why === 'locked') return stopScreen('lock', 'This session is locked', r.error, true);
+        if (why === 'banned') return stopScreen('x', 'You were removed', r.error);
+        return codeScreen((r && r.error) || 'Could not join');
+      }
+      joinedOnce = true;
       pid = r.pid; LS.set('tickbox.pid', pid);
       answers = r.answers || {}; qaVotes = r.qaVotes || {};
       state = r.state; results = r.results;

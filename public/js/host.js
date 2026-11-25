@@ -106,13 +106,102 @@
   let deck = hashId && decks[hashId] ? decks[hashId] : null;
   let sel = 0;
   let saveT;
+  let pendingSave = false;
   function save() {
     if (!deck) return;
     clearTimeout(saveT);
-    const d = deck;
-    saveT = setTimeout(() => { d.updated = Date.now(); decks[d.id] = d; store.set(LS_DECKS, decks); store.set(LS_CUR, d.id); }, 250);
+    const d = deck; pendingSave = true;
+    saveT = setTimeout(() => { pendingSave = false; d.updated = Date.now(); decks[d.id] = d; store.set(LS_DECKS, decks); store.set(LS_CUR, d.id); cloudMark(d.id); }, 250);
   }
-  function flushSave() { if (deck) { deck.updated = Date.now(); decks[deck.id] = deck; } store.set(LS_DECKS, decks); }
+  // write out now; only counts as an edit if something actually changed
+  function flushSave() {
+    if (deck) {
+      const isNew = !decks[deck.id] || !deck.updated;
+      if (pendingSave || isNew) { clearTimeout(saveT); pendingSave = false; deck.updated = Date.now(); cloudMark(deck.id); }
+      decks[deck.id] = deck;
+    }
+    store.set(LS_DECKS, decks);
+  }
+
+  /* ---------------- cloud save (Sign in with Google) ---------------- */
+  const cloud = () => window.TBCloud;
+  const cloudOn = () => !!(cloud() && cloud().available && cloud().user);
+  const dirtyCloud = new Set();
+  let cloudT = null, cloudState = 'idle';
+  function cloudMark(id) { if (!cloudOn() || !id) return; dirtyCloud.add(id); setCloudStatus('saving'); clearTimeout(cloudT); cloudT = setTimeout(cloudPush, 1200); }
+  async function cloudPush() {
+    clearTimeout(cloudT);
+    if (!cloudOn()) return;
+    let failed = false;
+    for (const id of [...dirtyCloud]) {
+      dirtyCloud.delete(id);
+      const d = decks[id];
+      try { if (d) await cloud().save(d); } catch (e) { console.warn('cloud save failed', e); dirtyCloud.add(id); failed = true; }
+    }
+    if (failed) { setCloudStatus('error'); cloudT = setTimeout(cloudPush, 8000); }
+    else setCloudStatus('saved');
+  }
+  function cloudRemove(id) { if (cloudOn()) cloud().remove(id).catch(e => console.warn(e)); }
+  function cloudResults() { if (cloudOn()) cloud().saveResults(store.get('tickbox.results', {})).catch(() => {}); }
+  async function cloudMerge() {
+    setCloudStatus('saving');
+    let remote;
+    try { remote = await cloud().list(); } catch (e) { console.warn(e); setCloudStatus('error'); return; }
+    const rmap = new Map(remote.map(r => [r.id, r]));
+    let changed = false;
+    for (const r of remote) {
+      const l = decks[r.id];
+      if (r.deleted) { if (l && (l.updated || 0) <= r.updated) { delete decks[r.id]; changed = true; } continue; }
+      if (r.deck && Array.isArray(r.deck.slides) && (!l || (l.updated || 0) < r.updated)) { decks[r.id] = { ...r.deck, id: r.id, updated: r.updated }; changed = true; }
+    }
+    for (const [id, l] of Object.entries(decks)) {
+      const r = rmap.get(id);
+      if (!r || (r.deleted ? (l.updated || 0) > r.updated : (r.updated || 0) < (l.updated || 0))) dirtyCloud.add(id);
+    }
+    try {
+      const rr = await cloud().loadResults();
+      if (rr) { const all = { ...rr, ...store.get('tickbox.results', {}) }; for (const k in rr) if (!all[k] || (rr[k].at || 0) > (all[k].at || 0)) all[k] = rr[k]; store.set('tickbox.results', all); }
+      cloudResults();
+    } catch (_) {}
+    if (changed) {
+      store.set(LS_DECKS, decks);
+      if (deck && decks[deck.id] && decks[deck.id] !== deck && !$('#editor').classList.contains('hidden')) { deck = decks[deck.id]; sel = Math.min(sel, deck.slides.length - 1); renderAll(); }
+    }
+    if (!$('#home').classList.contains('hidden')) showHome(homeView);
+    await cloudPush();
+  }
+  const GOOGLE_G = '<svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+  function setCloudStatus(s) { cloudState = s; drawCloud(); }
+  function drawCloud() {
+    const box = $('#cloudBox'); if (!box) return;
+    const c = cloud();
+    if (!c || !c.available) { box.innerHTML = '<p>Presentations are saved in this browser.</p>'; return; }
+    const u = c.user;
+    const st = { saving: 'Saving…', saved: 'Saved to your Google account', error: 'Not saved yet — will retry', idle: 'Saved to your Google account' }[cloudState];
+    box.innerHTML = u
+      ? `<div class="cloud-user">${u.photo ? `<img src="${esc(u.photo)}" alt="" referrerpolicy="no-referrer">` : `<span class="cu-ph">${esc((u.name || '?')[0])}</span>`}<div><b>${esc(u.name)}</b><small class="cs-${cloudState}">${st}</small></div></div><button class="link-btn" id="cloudOut">Sign out</button>`
+      : `<button class="btn google-btn" id="cloudIn">${GOOGLE_G}<span>Sign in with Google</span></button><p>Sign in to keep your presentations safe and open them on any laptop.</p>`;
+    const i = $('#cloudIn'); if (i) i.onclick = () => c.signIn().catch(e => { console.error(e); toast('Sign-in did not work: ' + (e.code || e.message || e)); });
+    const o = $('#cloudOut'); if (o) o.onclick = async () => {
+      const wipe = confirm('Sign out?\n\nPress OK to also remove your presentations from THIS browser (they stay safe in your Google account) — good on a shared computer.\nPress Cancel to keep a copy here.');
+      await c.signOut();
+      if (wipe) { decks = {}; store.set(LS_DECKS, decks); store.del('tickbox.results'); deck = null; showHome('home'); }
+      toast('Signed out');
+    };
+    const ed = $('#edCloud');
+    if (ed) { ed.textContent = u ? (cloudState === 'saving' ? 'Saving…' : cloudState === 'error' ? 'Offline — will retry' : 'Saved to cloud') : ''; ed.className = 'ed-cloud cs-' + cloudState; }
+  }
+  function initCloud() {
+    const c = cloud(); if (!c) return;
+    let lastUid = null;
+    c.onChange(u => {
+      const uid = u ? u.uid : null;
+      if (uid && uid !== lastUid) { lastUid = uid; toast('Signed in as ' + u.name); cloudMerge(); }
+      if (!uid) lastUid = null;
+      drawCloud();
+    });
+  }
+  if (window.TBCloud) setTimeout(initCloud); else window.addEventListener('tbcloud', initCloud, { once: true });
 
   /* ---------------- home: create / templates / your presentations ---------------- */
   const ago = ts => {
@@ -164,11 +253,11 @@
         if (act.dataset.act === 'dup') {
           const c = JSON.parse(JSON.stringify(d)); c.id = uid(); c.title = (d.title || 'Untitled') + ' (copy)'; c.updated = Date.now();
           c.slides.forEach(sl => { sl.id = uid(); }); delete c.fresh;
-          decks[c.id] = c; flushSave(); showHome(); toast('Duplicated');
+          decks[c.id] = c; flushSave(); cloudMark(c.id); showHome(); toast('Duplicated');
         } else if (act.dataset.act === 'export') exportDeck(d);
         else if (act.dataset.act === 'del') {
           if (!confirm('Delete "' + (d.title || 'Untitled') + '"? This cannot be undone.')) return;
-          delete decks[d.id]; const r = results0(); delete r[d.id]; store.set(LS_RESULTS, r); flushSave(); showHome();
+          delete decks[d.id]; const r = results0(); delete r[d.id]; store.set(LS_RESULTS, r); flushSave(); cloudRemove(d.id); showHome();
         }
       };
       card.onkeydown = e => { if (e.key === 'Enter') openDeck(d); };
@@ -327,7 +416,9 @@
   }
 
   function openDeck(d, after) {
+    const isNew = !decks[d.id];
     deck = d; sel = 0; panelTab = 'edit';
+    if (isNew) { d.updated = Date.now(); cloudMark(d.id); }
     decks[d.id] = d; flushSave(); store.set(LS_CUR, d.id);
     history.replaceState(null, '', location.pathname + '#d=' + d.id);
     $('#home').classList.add('hidden');
@@ -976,7 +1067,7 @@ Jupiter"></textarea>
     m.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
       const id = b.dataset.del;
       if (!confirm('Delete "' + decks[id].title + '"? This cannot be undone.')) return;
-      delete decks[id];
+      delete decks[id]; cloudRemove(id);
       if (id === deck.id) { deck = Object.values(decks)[0] || sampleDeck(); sel = 0; }
       decks[deck.id] = deck; store.set(LS_DECKS, decks); save(); renderAll(); m.remove();
     });
@@ -1052,16 +1143,40 @@ Jupiter"></textarea>
   let results = null;       // latest results for current slide
   let idleT;
 
+  const LS_BACKUP = 'tickbox.backup';
+  let backupHash = null, backupT = null;
   socket.on('connect', () => {
+    $('#offPill').hidden = true;
     const saved = live || store.get(LS_LIVE, null);
     if (saved) {
       socket.emit('host:resume', saved, r => {
-        if (r && r.ok) { live = saved; openPresent(r.snapshot); }
-        else if (live) { toast('Session expired'); closePresent(); }
+        if (r && r.ok) { live = saved; openPresent(r.snapshot); return; }
+        const bk = store.get(LS_BACKUP, null);
+        if (r && r.reason === 'missing' && bk && bk.code === saved.code && bk.json) {
+          // the server restarted: put the room back from this browser's copy
+          socket.emit('host:restore', { json: bk.json, hostToken: saved.hostToken }, rr => {
+            if (rr && rr.ok) { live = saved; openPresent(rr.snapshot); if (rr.restored) toast('Session restored — scores and players are back'); }
+            else if (live) { toast('Session expired'); closePresent(); }
+            else { store.del(LS_LIVE); store.del(LS_BACKUP); }
+          });
+          return;
+        }
+        if (live) { toast('Session expired'); closePresent(); }
         else store.del(LS_LIVE);
       });
     }
   });
+  socket.on('disconnect', () => { if (live) $('#offPill').hidden = false; });
+  function backupLoop() {
+    clearTimeout(backupT);
+    if (!live) return;
+    if (socket.connected) socket.emit('host:backup', { have: backupHash }, r => {
+      if (r && r.json) { backupHash = r.hash; store.set(LS_BACKUP, { code: live.code, at: Date.now(), json: r.json }); }
+    });
+    backupT = setTimeout(backupLoop, 3000);
+  }
+  // save right after anything the presenter does (next slide, start, reveal…)
+  const backupSoon = () => { clearTimeout(backupT); backupT = setTimeout(backupLoop, 250); };
 
   $('#btnPresent').onclick = () => {
     if (!socket.connected) { toast('Connecting to server… try again in a moment'); return; }
@@ -1084,13 +1199,15 @@ Jupiter"></textarea>
     document.body.style.overflow = 'hidden';
     $('#joinHost').textContent = location.host + '/join';
     $('#joinCode').textContent = prettyCode(live.code);
-    $('#qrSmall').src = '/api/qr?text=' + encodeURIComponent(location.origin + '/join?code=' + live.code);
     applySnapshot(snapshot);
     poke();
+    backupHash = null; backupLoop();
   }
+  function joinLink() { return location.origin + '/join?code=' + live.code + (snap && snap.pin ? '&p=' + snap.pin : ''); }
 
   function closePresent() {
-    live = null; snap = null; store.del(LS_LIVE);
+    live = null; snap = null; store.del(LS_LIVE); store.del(LS_BACKUP); clearTimeout(backupT);
+    $('#playersPanel').classList.add('hidden');
     $('#present').classList.add('hidden');
     document.body.style.overflow = '';
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -1100,7 +1217,17 @@ Jupiter"></textarea>
   function applySnapshot(s) {
     const changed = !snap || snap.index !== s.index;
     snap = s; results = s.results;
+    const qr = '/api/qr?text=' + encodeURIComponent(joinLink());
+    if ($('#qrSmall').getAttribute('src') !== qr) { $('#qrSmall').src = qr; $('#presentStage')._tb = null; }
     if (changed) { $('#presentStage')._tb = null; }
+    $('#lockPill').classList.toggle('hidden', !s.locked);
+    $('#joinbar').classList.toggle('locked', !!s.locked);
+    $('#joinCode').textContent = s.locked ? 'Locked' : prettyCode(live.code);
+    $('#cLock').innerHTML = icon(s.locked ? 'lock' : 'unlock');
+    $('#cLock').classList.toggle('on', !!s.locked);
+    $('#cLock').title = s.locked ? 'Joining is locked — click to unlock (L)' : 'Lock joining (L)';
+    $('#ppLock').checked = !!s.locked; $('#ppPin').checked = !!s.pin;
+    $('#ppPinBox').classList.toggle('hidden', !s.pin); $('#ppPinVal').textContent = s.pin || '';
     $('#pCount').textContent = s.participants;
     setResponders(s.responders);
     drawStage();
@@ -1123,7 +1250,7 @@ Jupiter"></textarea>
       host: true,
       quizNo: quizzes.findIndex(s => s.id === slide.id) + 1,
       quizTotal: quizzes.length,
-      code: prettyCode(live.code),
+      code: snap.locked ? 'Locked' : prettyCode(live.code),
       qrSrc: $('#qrSmall').src,
       hideResults: snap.hideResults,
       joinUrl: location.host + '/join',
@@ -1159,7 +1286,7 @@ Jupiter"></textarea>
     $('#cReset').classList.toggle('hidden', !votable || slide.type === 'quiz');
   }
 
-  socket.on('host:state', s => { if (live && s.code === live.code) applySnapshot(s); });
+  socket.on('host:state', s => { if (live && s.code === live.code) { applySnapshot(s); backupSoon(); } });
   socket.on('host:results', r => {
     if (!snap) return;
     const slide = snap.deck.slides[snap.index];
@@ -1226,7 +1353,7 @@ Jupiter"></textarea>
     const deckId = live.deckId;
     socket.emit('host:end', {}, r => {
       if (!r || !r.summary || !deckId) return;
-      const all = store.get('tickbox.results', {}); all[deckId] = r.summary; store.set('tickbox.results', all);
+      const all = store.get('tickbox.results', {}); all[deckId] = r.summary; store.set('tickbox.results', all); cloudResults();
     });
     closePresent();
     toast('Session ended');
@@ -1241,10 +1368,45 @@ Jupiter"></textarea>
     if (!live) return;
     const el = document.createElement('div');
     el.className = 'qr-big';
-    el.innerHTML = `<div class="inner"><img src="${$('#qrSmall').src}" alt="QR code"><div class="url">Go to <b>${esc(location.host)}/join</b> and enter</div><div class="code">${prettyCode(live.code)}</div></div>`;
+    el.innerHTML = snap && snap.locked
+      ? `<div class="inner"><div class="code" style="font-size:64px">🔒 Locked</div><div class="url">Joining is locked. Unlock it in Players to let people in.</div></div>`
+      : `<div class="inner"><img src="${$('#qrSmall').src}" alt="QR code"><div class="url">Go to <b>${esc(location.host)}/join</b> and enter</div><div class="code">${prettyCode(live.code)}</div>${snap && snap.pin ? '<div class="url">+ the PIN from the presenter</div>' : ''}</div>`;
     el.onclick = () => el.remove();
     document.body.appendChild(el);
   }
+  /* players panel: remove people, lock, PIN */
+  let ppT = null, ppList = [];
+  function openPlayers() { $('#playersPanel').classList.remove('hidden'); $('#ppSearch').value = ''; refreshPlayers(); }
+  function closePlayers() { $('#playersPanel').classList.add('hidden'); clearTimeout(ppT); }
+  function refreshPlayers() {
+    clearTimeout(ppT);
+    if (!live || $('#playersPanel').classList.contains('hidden')) return;
+    socket.emit('host:players', {}, list => { ppList = list || []; drawPlayers(); });
+    ppT = setTimeout(refreshPlayers, 2500);
+  }
+  function drawPlayers() {
+    const q = $('#ppSearch').value.trim().toLowerCase();
+    const list = ppList.filter(p => !q || p.name.toLowerCase().includes(q));
+    $('#ppCount').textContent = `(${ppList.length})`;
+    const AV = window.TBViz.AVATARS;
+    $('#ppList').innerHTML = list.length ? list.map(p => `<div class="pp-row ${p.online ? '' : 'off'}"><span class="pp-av">${AV[p.av % AV.length]}</span><span class="pp-name">${esc(p.name)}<small>${p.online ? 'online' : 'offline'}${p.score ? ' · ' + p.score.toLocaleString() + ' pts' : ''}</small></span><button class="btn sm danger-soft" data-kick="${p.id}" data-name="${esc(p.name)}">Remove</button></div>`).join('')
+      : `<p class="preview-note" style="padding:12px 4px">${ppList.length ? 'No one matches.' : 'No one has joined yet.'}</p>`;
+    $('#ppList').querySelectorAll('[data-kick]').forEach(b => b.onclick = () => {
+      if (!confirm(`Remove ${b.dataset.name} from this session? They can't rejoin and their points are removed.`)) return;
+      socket.emit('host:kick', { id: b.dataset.kick });
+      ppList = ppList.filter(p => p.id !== b.dataset.kick); drawPlayers();
+      toast(`${b.dataset.name} removed`);
+    });
+  }
+  $('#pPlayers').onclick = openPlayers;
+  $('#cPlayers').onclick = () => $('#playersPanel').classList.contains('hidden') ? openPlayers() : closePlayers();
+  $('#ppClose').onclick = closePlayers;
+  $('#ppSearch').oninput = drawPlayers;
+  const setLock = on => { socket.emit('host:lock', { locked: on }); toast(on ? 'Joining locked — no new people can join' : 'Joining unlocked'); };
+  $('#cLock').onclick = () => setLock(!snap.locked);
+  $('#ppLock').onchange = e => setLock(e.target.checked);
+  $('#ppPin').onchange = e => socket.emit('host:pin', { on: e.target.checked }, r => toast(r && r.pin ? `PIN is ${r.pin} — the QR code now includes it` : 'PIN turned off'));
+
   $('#joinbar').onclick = showBigQR;
   $('#cQR').onclick = showBigQR;
   document.addEventListener('click', e => { const m = $('#pTypeMenu'); if (m && !e.target.closest('.dd')) m.classList.add('hidden'); });
@@ -1266,6 +1428,9 @@ Jupiter"></textarea>
     else if (e.key.toLowerCase() === 'h') $('#cHide').click();
     else if (e.key.toLowerCase() === 'q') { if (big) big.remove(); else showBigQR(); }
     else if (e.key.toLowerCase() === 'f') toggleFull();
+    else if (e.key.toLowerCase() === 'l') $('#cLock').click();
+    else if (e.key.toLowerCase() === 'p') $('#cPlayers').click();
+    else if (e.key === 'Escape' && !$('#playersPanel').classList.contains('hidden')) closePlayers();
   });
 
   let rt;
