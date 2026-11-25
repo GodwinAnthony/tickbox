@@ -30,8 +30,8 @@
       <button class="sn" data-view="templates" data-ic="copy">Templates</button>
     </nav>
     <div class="side-foot">
+      <div class="cloud-box" id="cloudBox"><p>Presentations are saved in this browser.</p></div>
       <a class="sn" href="/join" data-ic="phone">Join a presentation</a>
-      <p>Presentations are saved in this browser.</p>
     </div>
     <input type="file" accept=".json,application/json" id="hImportFile" hidden>
   </aside>
@@ -44,7 +44,7 @@
     <span class="logo-mark mini"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     <div class="title-wrap">
       <input class="title-input" id="deckTitle" placeholder="Presentation title" aria-label="Presentation title">
-      <button class="sub-link" id="btnDecks" data-ic="folder">My presentations</button>
+      <span class="sub-row"><button class="sub-link" id="btnDecks" data-ic="folder">My presentations</button><span class="ed-cloud" id="edCloud"></span></span>
     </div>
     <div class="spacer"></div>
     <button class="btn round soft" id="btnPreview" data-ic="eye">Preview</button>
@@ -113,7 +113,9 @@
   <div class="present-top">
     <div></div>
     <div class="live-stats">
-      <div class="pill"><span class="live-dot"></span><span><span id="pCount">0</span> joined</span></div>
+      <div class="pill" id="offPill" hidden><span class="off-dot"></span><span>Reconnecting…</span></div>
+      <div class="pill lock-pill hidden" id="lockPill" data-ic="lock"><span>Locked</span></div>
+      <button class="pill pill-btn" id="pPlayers" title="Players"><span class="live-dot"></span><span><span id="pCount">0</span> joined</span></button>
       <div class="pill" id="rPill" data-ic="check"><span><span id="rCount">0</span> <span id="rLabel">responses</span></span></div>
     </div>
   </div>
@@ -129,6 +131,8 @@
       <button class="tb" id="cHide" title="Hide results (H)"></button>
       <button class="tb" id="cPhones" title="Show results on phones" data-ic="phone"></button>
       <span class="tb-sep"></span>
+      <button class="tb" id="cPlayers" title="Players — remove people, lock, PIN (P)" data-ic="user"></button>
+      <button class="tb" id="cLock" title="Lock joining (L)" data-ic="unlock"></button>
       <button class="tb" id="cQR" title="Show join QR code (Q)" data-ic="qr"></button>
       <button class="tb" id="cReset" title="Clear responses on this slide" data-ic="reset"></button>
       <button class="tb" id="cExport" title="Download results (CSV)" data-ic="download"></button>
@@ -142,11 +146,22 @@
     <span class="code" id="joinCode"></span>
   </div>
   <div class="reaction-layer" id="reactions"></div>
+  <aside class="players-panel hidden" id="playersPanel">
+    <div class="pp-head"><b>Players <span id="ppCount"></span></b><button class="ibtn" id="ppClose" data-ic="x" title="Close"></button></div>
+    <div class="pp-sec">
+      <label class="switch"><input type="checkbox" id="ppLock"><span class="track"></span><span><b>Lock joining</b><small>No new people can join. Players already in can still reconnect.</small></span></label>
+      <label class="switch"><input type="checkbox" id="ppPin"><span class="track"></span><span><b>Require a PIN</b><small>People who type the code also need the PIN. The QR code includes it.</small></span></label>
+      <div class="pp-pin hidden" id="ppPinBox">PIN <b id="ppPinVal"></b><small>Tell this only to people in the room</small></div>
+    </div>
+    <input class="input pp-search" id="ppSearch" placeholder="Search names…">
+    <div class="pp-list" id="ppList"></div>
+  </aside>
 </div>
 
 <div class="toast" id="toast"></div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/js/viz.js"></script>
 <script src="/js/host.js"></script>
+<script type="module" src="/js/cloud.js"></script>
 </body>
 </html>
