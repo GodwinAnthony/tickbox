@@ -15,7 +15,9 @@ const MAX_PARTICIPANTS = parseInt(process.env.MAX_PARTICIPANTS || '300', 10);
 const ROOM_IDLE_MS = 8 * 60 * 60 * 1000; // rooms are removed after 8 idle hours
 const HOST_FLUSH_MS = 200;               // presenter screen refresh rate
 const AUD_FLUSH_MS = 1000;               // phone result refresh rate
-const QUIZ_READY_MS = 4000;              // 'get ready' countdown before quiz answers appear
+const QUIZ_BANNER_MS = 2500;             // "Answer quickly to get more points!" screen
+const QUIZ_READ_MS = 3000;               // question shown alone so people can read it
+const QUIZ_READY_MS = QUIZ_BANNER_MS + QUIZ_READ_MS;   // total time before the answers appear
 
 const app = express();
 const server = http.createServer(app);
@@ -280,6 +282,7 @@ function computeResults(room, slide, forAudience = false) {
       const out = {
         counts, total, started: !!st.startedAt, revealed: !!st.revealed,
         readyIn: st.startedAt ? Math.max(0, st.startedAt - now) : null,
+        readMs: QUIZ_READ_MS,
         remaining: st.endsAt ? Math.max(0, st.endsAt - now) : null,
         players: connectedCount(room),
       };
@@ -411,6 +414,7 @@ function audState(room) {
     quiz: slide.type === 'quiz' ? {
       started: !!st.startedAt, revealed: !!st.revealed, showBoard: !!st.showBoard,
       readyIn: st.startedAt ? Math.max(0, st.startedAt - Date.now()) : null,
+      readMs: QUIZ_READ_MS,
       remaining: st.endsAt ? Math.max(0, st.endsAt - Date.now()) : null,
     } : null,
     showOnPhones: room.showOnPhones,
@@ -465,7 +469,9 @@ function startQuiz(room) {
   st.revealed = false;
   st.showBoard = false;
   st.open = true;
-  clearTimeout(room.quizTimer); clearTimeout(room.quizGoTimer);
+  clearTimeout(room.quizTimer); clearTimeout(room.quizGoTimer); clearTimeout(room.quizReadTimer);
+  clearTimeout(room.quizReadTimer);
+  room.quizReadTimer = setTimeout(() => broadcastState(room), QUIZ_BANNER_MS);
   room.quizGoTimer = setTimeout(() => broadcastState(room), QUIZ_READY_MS);
   room.quizTimer = setTimeout(() => revealQuiz(room, slide.id), QUIZ_READY_MS + slide.time * 1000 + 300);
   broadcastState(room);
@@ -475,7 +481,7 @@ function revealQuiz(room, slideId) {
   const slide = room.deck.slides.find(s => s.id === slideId);
   const st = room.slideState[slideId];
   if (!slide || !st || st.revealed || !st.startedAt) return;
-  clearTimeout(room.quizTimer); clearTimeout(room.quizGoTimer);
+  clearTimeout(room.quizTimer); clearTimeout(room.quizGoTimer); clearTimeout(room.quizReadTimer);
   st.revealed = true;
   st.open = false;
   st.endsAt = Math.min(st.endsAt, Date.now());
@@ -588,7 +594,7 @@ io.on('connection', socket => {
     delete room.hidden[slide.id];
     room.qa[slide.id] = [];
     room.slideState[slide.id] = { open: true };
-    if (slide.type === 'quiz') { clearTimeout(room.quizTimer); clearTimeout(room.quizGoTimer); delete room.boards[slide.id]; }
+    if (slide.type === 'quiz') { clearTimeout(room.quizTimer); clearTimeout(room.quizGoTimer); clearTimeout(room.quizReadTimer); delete room.boards[slide.id]; }
     broadcastState(room);
     io.to('aud:' + room.code).emit('aud:reset', { slideId: slide.id });
   });

@@ -75,7 +75,7 @@ const WORDS = ['robots', 'fun', 'ideas', 'energy', 'code', 'teamwork', 'future',
   host.emit('host:goto', { index: 2 }); await sleep(300);
   let quizResults = 0, correct = 0;
   clients.forEach(c => c.on('aud:quizResult', p => { quizResults++; if (p.correct) correct++; }));
-  host.emit('host:quizStart'); await sleep(4300); // wait for the 'get ready' countdown
+  host.emit('host:quizStart'); await sleep(5700); // wait for the banner + reading countdown
   r = await vote('aud:respond', i => (i % 5 === 0 ? 0 : 1), 's-quiz', 5000);
   await sleep(1000);
   console.log(`Quiz: ${r.ok} answers, ${quizResults} personal results delivered, ${correct} correct`, r.errors);
