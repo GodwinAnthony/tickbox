@@ -397,7 +397,14 @@ function respondersCount(room, slide) {
 function publicSlide(room, slide) {
   const st = room.slideState[slide.id];
   const s = { ...slide };
-  if (slide.type === 'quiz' && !st.revealed) delete s.correct;
+  if (slide.type === 'quiz' && !st.revealed) {
+    delete s.correct;
+    // keep the question secret until the presenter shows it (after the banner),
+    // and the answers secret until the timer starts
+    const now = Date.now();
+    if (!st.startedAt || st.startedAt - now > QUIZ_READ_MS + 150) delete s.question;
+    if (!st.startedAt || st.startedAt - now > 100) { s.optionCount = s.options.length; delete s.options; }
+  }
   return s;
 }
 
@@ -410,6 +417,8 @@ function audState(room) {
     index: room.index,
     total: room.deck.slides.length,
     slide: publicSlide(room, slide),
+    quizNo: slide.type === 'quiz' ? room.deck.slides.filter(x => x.type === 'quiz').findIndex(x => x.id === slide.id) + 1 : null,
+    quizTotal: slide.type === 'quiz' ? room.deck.slides.filter(x => x.type === 'quiz').length : null,
     open: st.open && !room.ended,
     quiz: slide.type === 'quiz' ? {
       started: !!st.startedAt, revealed: !!st.revealed, showBoard: !!st.showBoard,
