@@ -73,7 +73,9 @@
   // flag emojis -> real flag images (Windows has no flag emoji font)
   const FLAG_RE = /\uD83C[\uDDE6-\uDDFF]\uD83C[\uDDE6-\uDDFF]/g;
   const flagImg = (f, cls) => { const cc = [...f].map(c => String.fromCharCode(c.codePointAt(0) - 0x1F1E6 + 97)).join(''); return `<img class="${cls}" src="https://flagcdn.com/${cc}.svg" alt="${f}" data-e="${f}" draggable="false" onerror="this.replaceWith(this.dataset.e)">`; };
-  const rich = s => esc(s).replace(FLAG_RE, f => flagImg(f, 'flag-emo'));
+  // Indian scripts (Devanagari … Malayalam, U+0900–U+0DFF): no tight letter-spacing, taller lines
+  const INDIC_RE = /[\u0900-\u0DFF](?:[\u0900-\u0DFF\u200C\u200D\s.,?!:;'"()\-0-9]*[\u0900-\u0DFF])?/g;
+  const rich = s => esc(s).replace(FLAG_RE, f => flagImg(f, 'flag-emo')).replace(INDIC_RE, m => `<span class="ind">${m}</span>`);
   // question text: flags at the end are shown big under the text
   const richQ = s => {
     s = String(s == null ? '' : s);

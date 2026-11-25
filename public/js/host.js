@@ -676,6 +676,9 @@ Jupiter"></textarea>
 
   function readTextFile(f) {
     return f.arrayBuffer().then(buf => {
+      const b = new Uint8Array(buf.slice(0, 2));
+      if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf); // Excel "Unicode Text"
+      if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf);
       try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
       catch (_) { return new TextDecoder('windows-1252').decode(buf); } // Excel "CSV (Comma delimited)" on Windows
     });
@@ -819,6 +822,7 @@ Jupiter"></textarea>
             <li><b>Correct</b> can be a letter (A–F), a number (1–6) or the answer text. You can also put a <b>*</b> in front of the right answer instead.</li>
             <li><b>Time</b> is in seconds (5–120). Leave it empty to use the default.</li>
             <li><b>Type</b> is optional: quiz, poll, wordcloud, open, scale, ranking, qa or heading. Rows with a correct answer become quiz questions.</li>
+            <li><b>Malayalam, Hindi or other languages?</b> In Excel use <b>Save as → CSV UTF-8</b> (plain "CSV" turns them into ????). Google Sheets downloads work as they are.</li>
           </ul>
         </div>
       </div>
@@ -844,6 +848,7 @@ Jupiter"></textarea>
         <div class="csv-sum ${items.length ? 'ok' : 'bad'}">${items.length
           ? `${icon('check')} <b>${items.length} question${items.length > 1 ? 's' : ''} ready</b>${nq && nq < items.length ? ` <span>(${nq} quiz)</span>` : ''}`
           : `${icon('x')} <b>No questions found</b>`}${errors.length ? ` <em>· ${errors.length} row${errors.length > 1 ? 's' : ''} skipped</em>` : ''}</div>
+        ${rows.some(r => r.some(c => /\?{3,}/.test(c))) ? `<div class="csv-errs">Some text looks like <b>????</b>. Malayalam, Hindi and other languages get lost when Excel saves plain "CSV". Save it again as <b>CSV UTF-8</b> and re-import.</div>` : ''}
         ${errors.length ? `<div class="csv-errs">${errors.slice(0, 8).map(e => `<div>${e.row ? `Row ${e.row}: ` : ''}${esc(e.msg)}</div>`).join('')}${errors.length > 8 ? `<div>…and ${errors.length - 8} more</div>` : ''}</div>` : ''}
         ${items.length ? `<div class="csv-list">${items.map((x, k) => {
           const s = x.slide;
