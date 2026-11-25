@@ -994,3 +994,8 @@ a.btn { text-decoration: none; }
 .pod-score { font-variant-numeric: tabular-nums; }
 .lb-rest { align-self: center; height: 92%; }
 .row-av { margin-right: .45em; }
+
+/* reactions with names */
+.reaction { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 42px; line-height: 1; animation-duration: 4s; }
+.reaction .r-emo { filter: drop-shadow(0 4px 8px rgba(0,0,0,.15)); }
+.reaction .r-name { font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--ink); background: var(--card); border: 1px solid var(--line); padding: 3px 9px; border-radius: 999px; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 12px -6px rgba(23,19,43,.35); }
