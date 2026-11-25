@@ -894,21 +894,20 @@ Jupiter"></textarea>
   });
 
   const EMO = { heart: '❤️', like: '👍', laugh: '😂', wow: '😮', clap: '👏' };
-  socket.on('host:reactions', counts => {
+  socket.on('host:reactions', list => {
     const layer = $('#reactions');
-    let budget = 14;
-    Object.entries(counts).forEach(([k, n]) => {
-      for (let i = 0; i < Math.min(n, 6) && budget > 0; i++, budget--) {
-        const e = document.createElement('div');
-        e.className = 'reaction';
-        e.textContent = EMO[k] || '✨';
-        e.style.left = (70 + Math.random() * 27) + '%';
-        e.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px');
-        e.style.setProperty('--rot', (Math.random() * 50 - 25) + 'deg');
-        e.style.animationDelay = (Math.random() * 0.4) + 's';
-        layer.appendChild(e);
-        setTimeout(() => e.remove(), 4000);
-      }
+    if (!Array.isArray(list)) return;
+    if (layer.childElementCount > 40) return;          // keep the screen readable during a reaction storm
+    list.slice(0, 12).forEach((r, i) => {
+      const e = document.createElement('div');
+      e.className = 'reaction';
+      e.innerHTML = `<span class="r-emo">${EMO[r.e] || '✨'}</span><span class="r-name">${esc(r.n || 'Guest')}</span>`;
+      e.style.left = (66 + Math.random() * 26) + '%';
+      e.style.setProperty('--dx', (Math.random() * 110 - 55) + 'px');
+      e.style.setProperty('--rot', (Math.random() * 16 - 8) + 'deg');
+      e.style.animationDelay = (i * 0.12 + Math.random() * 0.2) + 's';
+      layer.appendChild(e);
+      setTimeout(() => e.remove(), 4600);
     });
   });
 

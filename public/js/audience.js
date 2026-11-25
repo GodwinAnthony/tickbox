@@ -62,7 +62,7 @@
       info = await r.json();
     } catch (_) { return codeScreen('Could not reach the server'); }
     const askedKey = 'tickbox.asked.' + code;
-    if (info.askNames && !LS.get(askedKey, false)) return nameScreen(info, askedKey);
+    if (!LS.get(askedKey, false)) return nameScreen(info, askedKey);
     connect();
   }
 
@@ -74,13 +74,19 @@
         <form id="f" autocomplete="off" style="margin-top:20px">
           <div class="field"><label>Your name or nickname</label>
           <input class="input" id="n" maxlength="30" placeholder="e.g. Asha" value="${esc(name)}" style="font-size:18px;padding:16px"></div>
+          <div class="err" id="nErr"></div>
           <button class="btn primary block" style="padding:16px">Let's go →</button>
+          ${info.askNames ? '<p class="aud-hint" style="text-align:center;margin-top:14px">Your name shows on the leaderboard and with your reactions</p>'
+            : '<button type="button" class="btn ghost block" id="nSkip" style="margin-top:8px">Skip — join without a name</button><p class="aud-hint" style="text-align:center;margin-top:10px">Your name shows with your reactions on the big screen</p>'}
         </form>
       </div>`;
     $('#n').focus();
+    const skip = $('#nSkip');
+    if (skip) skip.onclick = () => { name = ''; LS.set(askedKey, true); connect(); };
     $('#f').onsubmit = e => {
       e.preventDefault();
       name = $('#n').value.trim().slice(0, 30);
+      if (!name && info.askNames) { $('#nErr').textContent = 'Please enter a name or nickname'; return; }
       LS.set('tickbox.name', name);
       LS.set(askedKey, true);
       connect();
