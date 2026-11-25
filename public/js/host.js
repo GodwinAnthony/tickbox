@@ -508,7 +508,7 @@
         h += `<div class="field"><label>Body text</label><textarea class="input" id="pBody" maxlength="800">${esc(s.body || '')}</textarea></div>`;
         break;
       case 'leaderboard':
-        h += `<p class="hint">Top 10 with animated bars, then a crown and confetti for the winner. Each quiz question also shows its own leaderboard after the answer.</p>`;
+        h += `<p class="hint">Podium for the top 3 (3rd, then 2nd, then the winner rises) with places 4–10 beside it, then a crown and confetti. Each quiz question also shows its own animated leaderboard after the answer.</p>`;
         break;
       case 'lobby':
         h += `<p class="hint">Shows the QR code and join code while players' names pop in. Put it first.</p>`;

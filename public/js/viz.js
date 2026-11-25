@@ -59,7 +59,7 @@
     mc: { name: 'Multiple choice', desc: 'Vote on options, live bar chart' },
     quiz: { name: 'Quiz', desc: 'Timed question, faster = more points' },
     lobby: { name: 'Lobby', desc: 'Waiting room, names pop up' },
-    leaderboard: { name: 'Leaderboard', desc: 'Final top 10 with winner celebration' },
+    leaderboard: { name: 'Leaderboard', desc: 'Final podium + places 4–10' },
     wordcloud: { name: 'Word cloud', desc: 'Words grow as more people say them' },
     open: { name: 'Open ended', desc: 'Free-text answers on a live wall' },
     scale: { name: 'Scales', desc: 'Rate statements on a scale' },
@@ -536,7 +536,7 @@
         const r = i + (o.offset || 0);
         el.className = 'ritem' + (r === 0 ? ' gold' : r === 1 ? ' silver' : r === 2 ? ' bronze' : '');
         el.querySelector('.rk').innerHTML = `<span class="rk-badge">${r + 1}</span>`;
-        el.querySelector('.nm').textContent = it.name;
+        el.querySelector('.nm').innerHTML = (o.avatars ? `<span class="row-av">${AVATARS[(it.av || 0) % AVATARS.length]}</span>` : '') + esc(it.name);
         el.querySelector('.mvbox').innerHTML = moveBadge(it.move);
         const g = el.querySelector('.gain'); if (g) g.textContent = it.gain ? '+' + it.gain : '';
         el.querySelector('.fill').style.width = (it.score / best * 100) + '%';
@@ -545,22 +545,15 @@
     });
   }
 
+  /* final leaderboard: podium for the top 3, places 4-10 beside it */
   R.leaderboard = function (viz, slide, data, st, opts) {
+    opts = opts || {};
     const top = ((data && data.top) || []).slice(0, 10);
     emptyHint(viz, !top.length, `<div>${icon('leaderboard', 'big')}<br>No quiz scores yet — add Quiz slides before this one</div>`);
-    if (!st.box) { st.box = document.createElement('div'); st.box.className = 'board-box final'; viz.appendChild(st.box); }
-    animatedBoard(st.box, st, top, {
-      slots: 10, animate: !opts.noAnim,
-      onDone: opts.noAnim ? null : () => { const w = st.box.querySelector('.lbrow.first'); if (w) w.classList.add('winner'); confetti(viz); },
-    });
-  };
-
-  R.leaderboardPodium = function (viz, slide, data, st, opts) {
-    const top = (data && data.top) || [];
     if (!st.pod) {
       viz.insertAdjacentHTML('beforeend', `<div class="lb-wrap"><div class="podium"></div><div class="lb-rest"></div></div>`);
       st.pod = viz.querySelector('.podium'); st.rest = viz.querySelector('.lb-rest');
-      if (opts && opts.noAnim) viz.querySelector('.lb-wrap').classList.add('still');
+      if (opts.noAnim) viz.querySelector('.lb-wrap').classList.add('still');
     }
     const three = top.slice(0, 3), rest = top.slice(3);
     viz.querySelector('.lb-wrap').classList.toggle('solo', !rest.length);
@@ -568,14 +561,33 @@
     if (sig !== st.podSig) {
       const first = !st.podSig;
       st.podSig = sig;
-      const order = [1, 0, 2];
-      st.pod.innerHTML = order.map(i => {
+      const live = first && !opts.noAnim;
+      const delay = [1.5, 0.8, 0.2];            // 3rd rises first, the winner last
+      st.pod.innerHTML = [1, 0, 2].map(i => {
         const t = three[i];
         if (!t) return `<div class="pod p${i + 1} empty"></div>`;
-        return `<div class="pod p${i + 1}" style="animation-delay:${first ? [0.9, 1.6, 0.3][i] : 0}s"><div class="pod-name">${esc(t.name)}</div><div class="pod-score">${t.score.toLocaleString()} pts</div><div class="pod-block"><b>${i + 1}</b></div></div>`;
+        return `<div class="pod p${i + 1}" style="animation-delay:${live ? delay[i] : 0}s">
+          <div class="pod-av">${AVATARS[(t.av || 0) % AVATARS.length]}</div>
+          <div class="pod-name">${esc(t.name)}</div>
+          <div class="pod-score"><span class="ps">${live ? 0 : t.score.toLocaleString()}</span> pts</div>
+          <div class="pod-block"><b>${i + 1}</b></div></div>`;
       }).join('');
+      if (live) {
+        st.timers = st.timers || [];
+        [1, 0, 2].forEach(i => {
+          const t = three[i]; if (!t) return;
+          const el = st.pod.querySelector(`.p${i + 1} .ps`);
+          st.timers.push(setTimeout(() => tween(el, t.score), (delay[i] + 0.4) * 1000));
+        });
+        st.timers.push(setTimeout(() => {
+          const w = st.pod.querySelector('.p1'); if (w) w.classList.add('winner');
+          confetti(viz);
+        }, 2600));
+      } else if (three[0]) {
+        const w = st.pod.querySelector('.p1'); if (w && !opts.noAnim) w.classList.add('winner');
+      }
     }
-    boardList(st.rest, st, rest, { offset: 3, slots: 7, maxH: 60 });
+    boardList(st.rest, st, rest, { offset: 3, slots: 7, maxH: 58, avatars: true });
   };
 
   R.lobby = function (viz, slide, data, st, opts) {
