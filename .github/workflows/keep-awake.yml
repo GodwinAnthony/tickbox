@@ -1,0 +1,18 @@
+# Keeps the free Render server awake during the day, so nobody waits
+# ~1 minute for it to wake up when they scan the QR code.
+# Runs every 5 minutes from about 6:30 am to 11:30 pm India time.
+# To change the hours, edit the cron line (it is in UTC: India = UTC + 5:30).
+name: Keep TickBox awake
+
+on:
+  schedule:
+    - cron: '*/5 1-17 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Ping the site
+        run: curl -fsS --retry 3 --retry-delay 15 --max-time 100 https://tickbox-d0ng.onrender.com/health
