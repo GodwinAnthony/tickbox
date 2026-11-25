@@ -11,6 +11,31 @@
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
+<div class="gate" id="gate">
+  <div class="gate-art" aria-hidden="true">
+    <div class="ga-blob b1"></div><div class="ga-blob b2"></div>
+    <div class="ga-card c1"><div class="ga-q">What does CPU stand for?</div><div class="ga-bars"><i style="--h:82%;--c:#E5484D"></i><i style="--h:34%;--c:#3E63DD"></i><i style="--h:22%;--c:#F5A623"></i><i style="--h:12%;--c:#12A594"></i></div></div>
+    <div class="ga-card c2"><span>🦊</span><b>Asha</b><em>+986</em></div>
+    <div class="ga-card c3"><span>🏆</span><b>Live leaderboard</b></div>
+    <div class="ga-text"><h2>Live quizzes for<br>250+ people. Free.</h2><p>Polls, word clouds and speed quizzes your audience answers from their phones.</p></div>
+  </div>
+  <div class="gate-main">
+    <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="logo-word">tick<b>box</b></span></a>
+    <div class="gate-card" id="gateCard">
+      <div class="gate-loading" id="gateLoading"><div class="dots"><span></span><span></span><span></span></div></div>
+      <div class="gate-body hidden" id="gateBody">
+        <h1>Welcome to TickBox</h1>
+        <p class="gate-sub">Sign in to create presentations. They're saved to your Google account, so you can open them on any laptop.</p>
+        <button class="btn google-btn big" id="gateGoogle"></button>
+        <div class="gate-err" id="gateErr"></div>
+        <div class="gate-or"><span>or</span></div>
+        <button class="link-btn gate-guest" id="gateGuest">Continue without signing in</button>
+        <p class="gate-note">Without signing in, presentations are saved only in this browser.</p>
+      </div>
+    </div>
+    <p class="gate-foot">Joining a quiz? <a href="/join">Enter a code here</a> — no sign-in needed.</p>
+  </div>
+</div>
 <div class="home hidden" id="home">
   <aside class="home-side">
     <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="logo-word">tick<b>box</b></span></a>
