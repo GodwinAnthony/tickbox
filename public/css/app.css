@@ -1130,3 +1130,51 @@ a.btn { text-decoration: none; }
 /* Indian-language text */
 .ind { letter-spacing: 0; line-height: 1.38; }
 .slide-q .ind { line-height: 1.32; }
+
+/* ===== players panel / lock / reconnect ===== */
+.pill-btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+.pill-btn:hover { border-color: var(--violet); }
+.lock-pill { color: #A86200; background: #FFF4DC; border-color: #F5D58A; }
+.lock-pill .ic { color: #A86200; }
+.off-dot { width: 9px; height: 9px; border-radius: 50%; background: #E5484D; animation: pulse 1.2s infinite; }
+#offPill { color: #B3261E; }
+.joinbar.locked .code { color: #A86200; letter-spacing: 0; }
+.joinbar.locked img { opacity: .15; }
+.players-panel { position: absolute; top: 12px; right: 12px; bottom: 12px; width: min(380px, 92vw); background: var(--card, #fff); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-lg); z-index: 40; display: flex; flex-direction: column; padding: 16px; animation: ppIn .25s cubic-bezier(.2,.9,.3,1.1); color: var(--ink); }
+@keyframes ppIn { from { transform: translateX(30px); opacity: 0; } }
+.pp-head { display: flex; justify-content: space-between; align-items: center; font-size: 18px; margin-bottom: 10px; }
+.pp-head span { color: var(--muted); font-weight: 600; }
+.pp-sec { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 2px; margin-bottom: 12px; }
+.pp-sec .switch { align-items: flex-start; margin-bottom: 12px; }
+.pp-sec .switch b { display: block; font-size: 14px; }
+.pp-sec .switch small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; line-height: 1.4; margin-top: 2px; }
+.pp-pin { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; background: #F2EFFF; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-weight: 600; color: var(--ink-2); }
+.pp-pin b { font-family: var(--font-display); font-size: 28px; letter-spacing: .12em; color: var(--violet); }
+.pp-pin small { width: 100%; color: var(--muted); font-weight: 400; font-size: 12px; }
+.pp-search { margin-bottom: 8px; padding: 10px 12px; font-size: 14px; }
+.pp-list { flex: 1; overflow: auto; margin: 0 -4px; padding: 0 4px; }
+.pp-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.pp-row.off { opacity: .55; }
+.pp-av { width: 34px; height: 34px; border-radius: 50%; background: #F4F3F8; display: grid; place-items: center; font-size: 20px; flex: none; }
+.pp-name { flex: 1; min-width: 0; font-weight: 600; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.btn.danger-soft { background: #FFF1F0; color: #B3261E; border: 1px solid #F6C9C5; }
+.btn.danger-soft:hover { background: #FFE2DF; }
+
+/* ===== cloud save ===== */
+.cloud-box { margin-bottom: 10px; }
+.cloud-box p { margin: 8px 0 0; }
+.google-btn { width: 100%; justify-content: center; gap: 10px; background: #fff; border: 1px solid #DADCE0; color: #1F1F1F; font-weight: 600; padding: 10px 12px; border-radius: 12px; }
+.google-btn:hover { background: #F7F8F8; border-color: #C6C9CC; }
+.cloud-user { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.cloud-user img, .cu-ph { width: 34px; height: 34px; border-radius: 50%; flex: none; object-fit: cover; }
+.cu-ph { display: grid; place-items: center; background: var(--violet); color: #fff; font-weight: 700; }
+.cloud-user > div { min-width: 0; }
+.cloud-user b { display: block; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-user small { display: block; font-size: 11.5px; color: #13824B; }
+.cloud-user small.cs-saving { color: var(--muted); }
+.cloud-user small.cs-error, .ed-cloud.cs-error { color: #B3261E; }
+.cloud-box .link-btn { font-size: 12.5px; margin-top: 4px; }
+.sub-row { display: inline-flex; align-items: center; gap: 10px; }
+.ed-cloud { font-size: 12px; color: var(--muted); }
+.ed-cloud.cs-saved, .ed-cloud.cs-idle { color: #13824B; }
