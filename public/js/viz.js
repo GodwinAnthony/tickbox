@@ -131,7 +131,7 @@
     const sub = subtitle(slide, opts);
     stage.innerHTML = slide.type === 'content'
       ? `<div class="slide content-slide ${opts.noAnim ? '' : 'slide-enter'}"><h2 class="slide-q">${richQ(slide.question || 'Heading')}</h2>${slide.body ? `<div class="body">${rich(slide.body)}</div>` : ''}</div>`
-      : `<div class="slide ${opts.noAnim ? '' : 'slide-enter'}"><h2 class="slide-q">${richQ(slide.question || 'Your question here')}</h2>${sub ? `<div class="slide-sub">${sub}</div>` : ''}<div class="viz"></div></div>`;
+      : `<div class="slide s-${slide.type} ${opts.noAnim ? '' : 'slide-enter'}"><h2 class="slide-q">${richQ(slide.question || 'Your question here')}</h2>${sub ? `<div class="slide-sub">${sub}</div>` : ''}<div class="viz"></div></div>`;
   }
 
   function subtitle(slide, opts) {
@@ -277,7 +277,7 @@
         st.boardBox = document.createElement('div'); st.boardBox.className = 'board-box';
         viz.appendChild(st.boardBox);
       }
-      animatedBoard(st.boardBox, st, (data.board || []).slice(0, 8), { slots: 8, animate: !opts.noAnim });
+      animatedBoard(st.boardBox, st, (data.board || []).slice(0, 8), { slots: 8, maxH: 92, animate: !opts.noAnim });
     }
     if (phase === 'reveal') {
       columns(viz, st, slide.options, data.counts, data.total, QUIZ_COLORS, (c, i) => {
@@ -475,10 +475,10 @@
     if (!rows.length) return;
     const slots = Math.max(rows.length, o.slots || rows.length);
     const H = box.clientHeight - 4;
-    const gap = Math.max(5, H * 0.022);
+    const gap = Math.max(4, H * 0.014);
     const rowH = Math.max(26, Math.min(o.maxH || 66, (H - gap * (slots - 1)) / slots));
     const maxScore = Math.max(1, ...rows.map(r => r.score));
-    const MAXW = 64;                                    // % of the track the leader's bar fills
+    const MAXW = 56;                                    // % of the track the leader's bar fills
     const pct = v => Math.max(2.5, v / maxScore * MAXW);
     const anim = o.animate !== false && rows.some(r => r.gain > 0);
     const prevOrder = rows.map((r, i) => ({ r, i, prev: r.score - (r.gain || 0) })).sort((a, b) => b.prev - a.prev || a.i - b.i);
@@ -489,7 +489,7 @@
       const el = document.createElement('div');
       el.className = 'lbrow';
       el.style.height = rowH + 'px';
-      el.style.fontSize = Math.max(11, Math.min(26, rowH * 0.36)) + 'px';
+      el.style.fontSize = Math.max(11, Math.min(36, rowH * 0.46)) + 'px';
       el.style.setProperty('--pc', PCOL[hash(r.id) % PCOL.length]);
       el.innerHTML = `<div class="lb-score"><span class="num"></span> p</div>
         <div class="lb-track"><div class="lb-fill"><div class="lb-solid"></div>${r.gain ? `<span class="lb-gain">+${r.gain.toLocaleString()}</span>` : ''}</div>
@@ -608,6 +608,11 @@
           <div class="pod-score"><span class="ps">${live ? 0 : t.score.toLocaleString()}</span> pts</div>
           <div class="pod-block"><b>${i + 1}</b></div></div>`;
       }).join('');
+      // shrink long names until every word fits (max 2 lines)
+      st.pod.querySelectorAll('.pod-name').forEach(el => {
+        let f = parseFloat(getComputedStyle(el).fontSize), n = 0;
+        while (n++ < 14 && f > 12 && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)) { f *= 0.92; el.style.fontSize = f + 'px'; }
+      });
       if (live) {
         st.timers = st.timers || [];
         [1, 0, 2].forEach(i => {
@@ -623,7 +628,7 @@
         const w = st.pod.querySelector('.p1'); if (w && !opts.noAnim) w.classList.add('winner');
       }
     }
-    boardList(st.rest, st, rest, { offset: 3, slots: 7, maxH: 58, avatars: true });
+    boardList(st.rest, st, rest, { offset: 3, slots: 7, maxH: 76, avatars: true });
   };
 
   R.lobby = function (viz, slide, data, st, opts) {
