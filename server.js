@@ -167,7 +167,7 @@ function createRoom(deck) {
     dirtyHost: true,
     dirtyAud: false,
     lastAudFlush: 0,
-    reactions: {},
+    reactions: [],        // recent reactions with names, flushed to the big screen every 200 ms
     quizTimer: null,
     quizGoTimer: null,
     boards: {},           // slideId -> leaderboard snapshot taken at reveal
@@ -675,11 +675,11 @@ io.on('connection', socket => {
   socket.on('aud:react', p => {
     const ctx = audCtx(); if (!ctx) return;
     const now = Date.now();
-    if (now - ctx.part.lastReact < 350) return;
+    if (now - ctx.part.lastReact < 500) return;
     ctx.part.lastReact = now;
     const e = ['heart', 'like', 'laugh', 'wow', 'clap'].includes(p && p.e) ? p.e : null;
     if (!e) return;
-    ctx.room.reactions[e] = (ctx.room.reactions[e] || 0) + 1;
+    if (ctx.room.reactions.length < 16) ctx.room.reactions.push({ e, n: ctx.part.name, av: avatarOf(ctx.pid) });
   });
 
   socket.on('aud:qaAsk', (p, cb) => {
@@ -737,10 +737,9 @@ setInterval(() => {
         responders: respondersCount(room, slide),
       });
     }
-    const keys = Object.keys(room.reactions);
-    if (keys.length) {
+    if (room.reactions.length) {
       io.to('host:' + room.code).emit('host:reactions', room.reactions);
-      room.reactions = {};
+      room.reactions = [];
     }
     if (room.dirtyAud && now - room.lastAudFlush >= AUD_FLUSH_MS) {
       room.dirtyAud = false;
