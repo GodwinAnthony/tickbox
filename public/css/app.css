@@ -1035,3 +1035,48 @@ a.btn { text-decoration: none; }
 .quiz-tiles.stack .quiz-tile span { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .quiz-tiles.stack .quiz-tile:active { transform: scale(.98); }
 @media (max-height: 640px) { .quiz-tiles.stack .quiz-tile { min-height: 54px; font-size: 19px; padding: 10px 14px; } }
+
+/* ===== CSV import ===== */
+.modal.wide { width: min(820px, 100%); }
+.cc-ic.green { background: #DDF5E8; color: #13824B; }
+.create-row { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.qchip.csv .ic { color: #13824B; }
+.csv-drop { display: flex; align-items: center; gap: 16px; padding: 18px 20px; border: 2px dashed #CFCBE0; border-radius: 16px; cursor: pointer; background: #FAF9FE; transition: border-color .15s, background .15s; }
+.csv-drop:hover, .csv-drop.over { border-color: var(--violet); background: #F2EFFF; }
+.csv-drop.loaded { border-style: solid; border-color: #9BDDB8; background: #F1FBF5; }
+.csv-drop b { display: block; font-size: 16px; }
+.csv-drop small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.csv-ic { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #DDF5E8; color: #13824B; flex: none; }
+.csv-ic .ic { width: 24px; height: 24px; }
+.csv-help { margin-top: 16px; }
+.csv-help-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; }
+.csv-tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.csv-tbl { border-collapse: collapse; font-size: 12px; white-space: nowrap; width: 100%; }
+.csv-tbl th { background: #F4F3F8; font-weight: 700; text-align: left; padding: 7px 10px; border-right: 1px solid var(--line); color: var(--ink-2); }
+.csv-tbl td { padding: 7px 10px; border-top: 1px solid var(--line); border-right: 1px solid var(--line); color: var(--ink-2); }
+.csv-notes { margin: 12px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+.csv-notes li { margin-bottom: 3px; }
+.csv-opts { margin-top: 16px; flex-wrap: wrap; gap: 14px; }
+.csv-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.csv-sum { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 15px; }
+.csv-sum .ic { width: 20px; height: 20px; padding: 3px; border-radius: 50%; color: #fff; background: #13A05A; }
+.csv-sum.bad .ic { background: #D94141; }
+.csv-sum span, .csv-sum em { color: var(--muted); font-style: normal; font-size: 14px; }
+.csv-errs { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #FFF1F0; color: #A12C2C; font-size: 13px; line-height: 1.6; }
+.csv-list { margin-top: 12px; max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.csv-item { display: flex; gap: 12px; align-items: flex-start; padding: 11px 14px; border-top: 1px solid var(--line); }
+.csv-item:first-child { border-top: 0; }
+.ci-n { width: 24px; height: 24px; border-radius: 50%; background: #F1EFF8; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--ink-2); flex: none; }
+.ci-main { flex: 1; min-width: 0; }
+.ci-q { font-weight: 600; font-size: 14px; line-height: 1.4; }
+.ci-type { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-right: 8px; background: #EEE; color: #555; vertical-align: 1px; }
+.ci-type.t-quiz { background: #FFE6E3; color: #C2342B; }
+.ci-type.t-mc { background: #E8E4FF; color: #5A3FD9; }
+.ci-type.t-wordcloud, .ci-type.t-open { background: #E1EFFF; color: #1F6FD1; }
+.ci-opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ci-opts span { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; padding: 3px 9px; border-radius: 7px; background: #F4F3F8; color: var(--ink-2); }
+.ci-opts span.right { background: #DDF5E8; color: #0E7040; font-weight: 700; }
+.ci-opts .ic { width: 13px; height: 13px; }
+.ci-warn { margin-top: 5px; font-size: 12px; color: #A86200; }
+.ci-time { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--muted); flex: none; }
+.ci-time .ic { width: 14px; height: 14px; }
