@@ -12,32 +12,29 @@
 </head>
 <body>
 <div class="home hidden" id="home">
-  <header class="home-top">
+  <aside class="home-side">
     <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="logo-word">tick<b>box</b></span></a>
-    <a class="btn ghost sm" href="/join" data-ic="phone">Join a presentation</a>
-  </header>
-  <main class="home-main">
-    <h1 class="home-h1">Create a presentation</h1>
-    <div class="create-row">
-      <button class="create-card primary-card" id="hBlank">
-        <span class="cc-ic" data-ic="plus"></span>
-        <span><b>Start from scratch</b><small>A blank presentation. Add quizzes, polls or any slide you like.</small></span>
-      </button>
-      <button class="create-card" id="hPaste">
-        <span class="cc-ic amber" data-ic="paste"></span>
-        <span><b>Paste quiz questions</b><small>Turn a list of questions into a ready quiz with lobby and leaderboard.</small></span>
-      </button>
-      <label class="create-card" id="hImport">
-        <span class="cc-ic sky" data-ic="download"></span>
-        <span><b>Import a file</b><small>Open a TickBox .json file you exported before.</small></span>
-        <input type="file" accept=".json,application/json" id="hImportFile" hidden>
-      </label>
+    <div class="new-wrap">
+      <button class="new-slide" id="hNew" data-ic="plus">New presentation</button>
+      <div class="new-menu hidden" id="hNewMenu">
+        <button data-new="blank"><span class="t-ic" data-ic="mc"></span><span><b>Blank presentation</b><small>Start from an empty slide</small></span></button>
+        <button data-new="quiz"><span class="t-ic t-quiz" data-ic="quiz"></span><span><b>Quiz competition</b><small>Speed quiz with leaderboards</small></span></button>
+        <button data-new="paste"><span class="t-ic t-leaderboard" data-ic="paste"></span><span><b>Paste quiz questions</b><small>Turn a list into a quiz</small></span></button>
+        <button data-new="import"><span class="t-ic t-qa" data-ic="download"></span><span><b>Import presentation</b><small>Open a TickBox .json file</small></span></button>
+      </div>
     </div>
-    <div class="home-sec"><h2>Start from a template</h2></div>
-    <div class="tpl-grid" id="tplGrid"></div>
-    <div class="home-sec"><h2>Your presentations</h2><span class="home-note">Saved in this browser · export a .json to move them</span></div>
-    <div class="deck-grid" id="deckGrid"></div>
-  </main>
+    <nav class="side-nav">
+      <button class="sn on" data-view="home" data-ic="home">Home</button>
+      <button class="sn" data-view="mine" data-ic="folder">My presentations</button>
+      <button class="sn" data-view="templates" data-ic="copy">Templates</button>
+    </nav>
+    <div class="side-foot">
+      <a class="sn" href="/join" data-ic="phone">Join a presentation</a>
+      <p>Presentations are saved in this browser.</p>
+    </div>
+    <input type="file" accept=".json,application/json" id="hImportFile" hidden>
+  </aside>
+  <main class="home-main" id="homeMain"></main>
 </div>
 
 <div class="editor hidden" id="editor">
@@ -58,6 +55,18 @@
       <div class="slide-list" id="slideList"></div>
     </aside>
     <main class="canvas-wrap" id="canvasWrap">
+      <div class="starter hidden" id="starter">
+        <h2>What would you like to create?</h2>
+        <div class="ask-box">
+          <textarea id="stText" rows="4" placeholder="Type or paste your questions…&#10;&#10;Put a * before the right answer to make it a quiz question."></textarea>
+          <button class="ask-go" id="stGo" title="Create slides" data-ic="arrowup" disabled></button>
+        </div>
+        <div class="st-hint" id="stHint">Each question becomes a slide · answers marked with * become quiz questions</div>
+        <div class="st-actions">
+          <button class="btn round" id="stScratch" data-ic="pencil">Start from scratch</button>
+          <label class="btn round" data-ic="download">Import slides<input type="file" accept=".json,application/json" id="stImport" hidden></label>
+        </div>
+      </div>
       <div class="canvas" id="canvas">
         <div class="stage" id="previewStage"></div>
         <div class="join-strip"><span>Join at <b id="stripHost"></b></span><span class="code">123 456</span></div>
