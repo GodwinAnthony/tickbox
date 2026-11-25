@@ -146,6 +146,7 @@
     if (!force && k === screenKey) { updateResults(); return; }
     if (k.split('|')[0] !== screenKey.split('|')[0]) draft = {};
     screenKey = k;
+    main.classList.remove('quiz-run');
     cancelAnimationFrame(quizRaf);
     document.querySelectorAll('.submit-bar').forEach(n => n.remove());
     if (state.ended) {
@@ -334,8 +335,11 @@
       return;
     }
     const endsAt = Date.now() + (q.remaining || 0);
-    main.innerHTML = `<div class="quiz-bar"><i id="qb"></i></div>` + header(s) +
-      `<div class="quiz-tiles">${s.options.map((o, i) => `<button class="quiz-tile" style="--c:${QUIZ_COLORS[i]}" data-i="${i}"><svg viewBox="0 0 24 24">${SHAPES[i]}</svg>${esc(o)}</button>`).join('')}</div>`;
+    main.classList.add('quiz-run');
+    const longest = Math.max(...s.options.map(o => o.length));
+    const size = longest > 40 ? 'sm' : longest > 22 ? 'md' : 'lg';
+    main.innerHTML = `<div class="quiz-bar"><i id="qb"></i></div><h1 class="aud-q quiz-q">${esc(s.question)}</h1>` +
+      `<div class="quiz-tiles stack n${s.options.length} ${size}">${s.options.map((o, i) => `<button class="quiz-tile" style="--c:${QUIZ_COLORS[i]}" data-i="${i}"><svg viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${esc(o)}</span></button>`).join('')}</div>`;
     main.querySelectorAll('.quiz-tile').forEach(b => b.onclick = () => {
       main.querySelectorAll('.quiz-tile').forEach(x => { x.disabled = true; x.classList.toggle('faded', x !== b); });
       send(+b.dataset.i);
