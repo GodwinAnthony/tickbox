@@ -978,3 +978,19 @@ a.btn { text-decoration: none; }
   .home-side { position: static; height: auto; }
   .home-main { padding: 24px 16px 40px; }
 }
+
+/* final podium polish */
+.lb-wrap { grid-template-columns: 1.15fr 1fr; gap: 5%; }
+.podium { gap: 4%; padding-top: 4%; }
+.pod-av { width: clamp(34px, 7cqh, 76px); height: clamp(34px, 7cqh, 76px); border-radius: 50%; background: var(--card); border: 3px solid var(--line); display: grid; place-items: center; font-size: clamp(18px, 4cqh, 44px); margin-bottom: 6px; position: relative; }
+.pod.p1 .pod-av { width: clamp(42px, 9cqh, 96px); height: clamp(42px, 9cqh, 96px); font-size: clamp(22px, 5.2cqh, 56px); border-color: #F7C948; }
+.pod.p2 .pod-av { border-color: #C9CFD9; }
+.pod.p3 .pod-av { border-color: #EDB48A; }
+.pod.p1.winner .pod-av::before { content: '👑'; position: absolute; top: -0.75em; left: 50%; transform: translateX(-50%) rotate(-10deg); font-size: .75em; animation: crown .6s cubic-bezier(.2,.9,.3,1.5) both; }
+.pod.p1.winner .pod-block { box-shadow: 0 0 0 4px color-mix(in srgb, var(--violet) 25%, transparent), 0 18px 40px -16px var(--violet); }
+.pod.p1 .pod-block { background: linear-gradient(180deg, #F7C948, #E5A81B); color: #4D3A00; }
+.pod.p2 .pod-block { background: linear-gradient(180deg, #DDE2EA, #B8C0CC); color: #39404D; }
+.pod.p3 .pod-block { background: linear-gradient(180deg, #F0BE97, #D98D5B); color: #55290B; }
+.pod-score { font-variant-numeric: tabular-nums; }
+.lb-rest { align-self: center; height: 92%; }
+.row-av { margin-right: .45em; }
