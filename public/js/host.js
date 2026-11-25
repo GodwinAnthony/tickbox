@@ -212,6 +212,7 @@
             <span>Or start with</span>
             ${TEMPLATES.map((t, k) => `<button class="qchip" data-tpl="${k}">${icon(['quiz', 'wordcloud', 'qa'][k])}${esc(t.name)}</button>`).join('')}
             <button class="qchip" id="hBlank2">${icon('plus')}Blank</button>
+            <button class="qchip csv" data-new="csv">${icon('sheet')}Import CSV</button>
           </div>
         </div>
         ${latest ? (() => {
@@ -243,6 +244,7 @@
         <div class="create-row">
           <button class="create-card primary-card" data-new="blank"><span class="cc-ic">${icon('plus')}</span><span><b>Start from scratch</b><small>A blank presentation.</small></span></button>
           <button class="create-card" data-new="paste"><span class="cc-ic amber">${icon('paste')}</span><span><b>Paste quiz questions</b><small>Turn a list into a ready quiz.</small></span></button>
+          <button class="create-card" data-new="csv"><span class="cc-ic green">${icon('sheet')}</span><span><b>Import from spreadsheet</b><small>Questions, answers and times from a .csv file.</small></span></button>
           <button class="create-card" data-new="import"><span class="cc-ic sky">${icon('download')}</span><span><b>Import a file</b><small>Open a TickBox .json file.</small></span></button>
         </div>`;
       main.querySelectorAll('[data-tpl-thumb]').forEach(fr => {
@@ -321,6 +323,7 @@
     else if (kind === 'quiz') openDeck(quizDeck());
     else if (kind === 'paste') openDeck({ id: uid(), title: 'My quiz', settings: { askNames: true, theme: 'light' }, updated: Date.now(), slides: [newSlide('lobby')] }, () => openBulk());
     else if (kind === 'import') $('#hImportFile').click();
+    else if (kind === 'csv') openCsv('new');
   }
 
   function openDeck(d, after) {
@@ -485,7 +488,7 @@
         break;
       case 'quiz':
         h += listEditor('Answers', 'options', s, { min: 2, max: 6, correct: true, colors: window.TBViz.QUIZ_COLORS, noun: 'answer' });
-        h += `<div class="field"><label>Time limit</label><select class="input" id="pTime">${[5, 10, 15, 20, 30, 45, 60, 90].map(t => `<option value="${t}" ${s.time === t ? 'selected' : ''}>${t} seconds</option>`).join('')}</select></div>
+        h += `<div class="field"><label>Time limit</label><select class="input" id="pTime">${[...new Set([5, 10, 15, 20, 30, 45, 60, 90, 120, s.time])].sort((a, b) => a - b).map(t => `<option value="${t}" ${s.time === t ? 'selected' : ''}>${t} seconds</option>`).join('')}</select></div>
           <p class="hint">Tick the correct answer. Correct answers score 500–1000 points: the faster, the more.</p>
           <button class="link-btn" id="pBulk">${icon('paste')} Paste many questions at once</button>`;
         break;
@@ -614,7 +617,8 @@ Jupiter"></textarea>
         <label class="switch"><input type="checkbox" id="bWrap" checked><span class="track"></span>Add Lobby + final Leaderboard if missing</label>
       </div>
       <div class="err" id="bErr"></div>
-      <div style="margin-top:10px;text-align:right"><button class="btn primary" id="bAdd" disabled>Add questions</button></div>`);
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:12px"><button class="link-btn" id="bCsv">${icon('sheet')} Have a spreadsheet? Import CSV</button><button class="btn primary" id="bAdd" disabled>Add questions</button></div>`);
+    m.querySelector('#bCsv').onclick = () => { m.remove(); openCsv('add'); };
     const ta = m.querySelector('#bText'), add = m.querySelector('#bAdd'), err = m.querySelector('#bErr');
     const check = () => {
       const { out, bad } = parseQuiz(ta.value);
@@ -639,10 +643,273 @@ Jupiter"></textarea>
     ta.focus();
   }
 
+
+  /* ---------------- CSV / spreadsheet import ---------------- */
+  const CSV_TEMPLATE = [
+    ['Type', 'Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Option E', 'Option F', 'Correct', 'Time'],
+    ['quiz', 'What does CPU stand for?', 'Central Processing Unit', 'Computer Personal Unit', 'Central Power Utility', 'Core Program Unit', '', '', 'A', '20'],
+    ['quiz', 'Which planet is known as the Red Planet?', 'Venus', 'Mars', 'Jupiter', 'Saturn', '', '', 'B', '15'],
+    ['quiz', 'What is 7 x 8?', '54', '56', '64', '', '', '', '56', '10'],
+    ['quiz', 'Water boils at 100 degrees C at sea level, true or false?', 'True', 'False', '', '', '', '', 'A', '10'],
+    ['poll', 'Which topic should we cover next?', 'Robotics', 'Embedded systems', 'Machine design', '', '', '', '', ''],
+    ['wordcloud', 'Describe today in one word', '', '', '', '', '', '', '', ''],
+  ];
+  function downloadCsvTemplate() {
+    const csv = CSV_TEMPLATE.map(r => r.map(c => /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
+    a.download = 'tickbox-quiz-template.csv'; a.click();
+  }
+  function exportCsv(d) {
+    const rows = [CSV_TEMPLATE[0]];
+    const TN = { quiz: 'quiz', mc: 'poll', wordcloud: 'wordcloud', open: 'open', scale: 'scale', ranking: 'ranking', qa: 'qa', content: 'heading' };
+    d.slides.forEach(s => {
+      if (!TN[s.type]) return;
+      const opts = (s.options || s.statements || (s.type === 'content' && s.body ? [s.body] : [])).slice(0, 6);
+      rows.push([TN[s.type], s.question || '', ...opts, ...Array(6 - opts.length).fill(''), s.type === 'quiz' ? 'ABCDEF'[s.correct] : '', s.type === 'quiz' ? String(s.time) : '']);
+    });
+    const csv = rows.map(r => r.map(c => /[",\n\r]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
+    a.download = (d.title || 'tickbox').replace(/[^\w-]+/g, '_') + '.csv'; a.click();
+  }
+
+  function readTextFile(f) {
+    return f.arrayBuffer().then(buf => {
+      try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (_) { return new TextDecoder('windows-1252').decode(buf); } // Excel "CSV (Comma delimited)" on Windows
+    });
+  }
+
+  function csvRows(text) {
+    text = text.replace(/^﻿/, '');
+    // pick the delimiter used in the first line: comma, semicolon (European Excel) or tab
+    const head = text.slice(0, text.search(/\r?\n|$/));
+    const count = ch => head.replace(/"[^"]*"/g, '').split(ch).length - 1;
+    const delim = [',', ';', '\t'].sort((a, b) => count(b) - count(a))[0];
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+        else cell += c;
+      } else if (c === '"' && cell.trim() === '') { q = true; cell = ''; }
+      else if (c === delim) { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += c;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.map(r => r.map(c => c.trim())).filter(r => r.some(Boolean));
+  }
+
+  const CSV_TYPES = {
+    quiz: 'quiz', question: 'quiz', 'quiz question': 'quiz',
+    poll: 'mc', mc: 'mc', 'multiple choice': 'mc', 'multiple-choice': 'mc', vote: 'mc',
+    wordcloud: 'wordcloud', 'word cloud': 'wordcloud', word: 'wordcloud', words: 'wordcloud',
+    open: 'open', 'open ended': 'open', 'open-ended': 'open', text: 'open', 'free text': 'open',
+    scale: 'scale', scales: 'scale', rating: 'scale', ranking: 'ranking', rank: 'ranking',
+    qa: 'qa', 'q&a': 'qa', 'q and a': 'qa', heading: 'content', content: 'content', title: 'content', info: 'content', slide: 'content',
+    lobby: 'lobby', leaderboard: 'leaderboard',
+  };
+
+  function parseTime(v) {
+    if (!v) return null;
+    const m = String(v).trim().match(/^(\d+):(\d{1,2})$/);
+    const n = m ? (+m[1]) * 60 + (+m[2]) : parseFloat(String(v).replace(',', '.'));
+    if (!isFinite(n) || n <= 0) return NaN;
+    return Math.max(5, Math.min(120, Math.round(n)));
+  }
+
+  // rows -> { items: [{row, slide, warn}], errors: [{row, msg}] }
+  function csvToSlides(rows, defTime) {
+    const items = [], errors = [];
+    if (!rows.length) return { items, errors: [{ row: 0, msg: 'The file is empty' }] };
+    const norm = h => h.toLowerCase().replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').replace(/[:*]/g, '').trim();
+    const hdr = rows[0].map(norm);
+    const col = { opts: [] };
+    const isHeader = hdr.some(h => /^(question|questions|question text|q|prompt)$/.test(h));
+    if (isHeader) {
+      hdr.forEach((h, i) => {
+        let m;
+        if ((m = h.match(/^(?:option|answer|choice|ans|opt)\s*\(?([1-6a-f])\)?$/))) col.opts[/\d/.test(m[1]) ? +m[1] - 1 : 'abcdef'.indexOf(m[1])] = i;
+        else if (/^(question|questions|question text|q|prompt)$/.test(h)) col.q = i;
+        else if (/^(type|slide type|question type|kind)$/.test(h)) col.type = i;
+        else if (/correct|right answer|^answer$|^key$|^solution$/.test(h)) col.correct = i;
+        else if (/time|sec|timer|duration|limit/.test(h)) col.time = i;
+      });
+      col.opts = col.opts.filter(x => x != null);
+    }
+    rows.slice(isHeader ? 1 : 0).forEach((r, ri) => {
+      const rowNo = ri + (isHeader ? 2 : 1);
+      let question, opts, correctRaw = '', timeRaw = '', typeRaw = '';
+      if (isHeader) {
+        question = r[col.q] || '';
+        opts = col.opts.map(i => r[i] || '');
+        if (col.correct != null) correctRaw = r[col.correct] || '';
+        if (col.time != null) timeRaw = r[col.time] || '';
+        if (col.type != null) typeRaw = r[col.type] || '';
+      } else {
+        // no header: [type?], question, answers…, [correct], [time]
+        const cells = r.slice();
+        while (cells.length && !cells[cells.length - 1]) cells.pop();
+        if (CSV_TYPES[norm(cells[0] || '')] && cells.length > 1) typeRaw = cells.shift();
+        question = cells.shift() || '';
+        if (cells.length >= 3 && /^\d+(\s*s(ec)?)?$/i.test(cells[cells.length - 1]) && +parseFloat(cells[cells.length - 1]) >= 5) timeRaw = cells.pop();
+        if (cells.length >= 3 && /^([a-f]|[1-6])$/i.test(cells[cells.length - 1])) correctRaw = cells.pop();
+        opts = cells;
+      }
+      question = question.replace(/^\s*(q(uestion)?\s*)?\d+\s*[.):-]\s+/i, '').trim();
+      if (!question && !opts.some(Boolean)) return;
+      if (!question) { errors.push({ row: rowNo, msg: 'No question text' }); return; }
+      // a "*" in front of / behind an answer marks it correct
+      let starred = -1;
+      opts = opts.map((o, i) => { if (/^\*|\*$/.test(o)) { starred = i; return o.replace(/^\*+|\*+$/g, '').trim(); } return o; });
+      const kept = []; const map = [];
+      opts.forEach((o, i) => { if (o) { map[i] = kept.length; kept.push(o.slice(0, 120)); } });
+      let type = CSV_TYPES[norm(typeRaw)] || null;
+      if (typeRaw && !type) { errors.push({ row: rowNo, msg: `Unknown type "${typeRaw}"` }); return; }
+      let correct = -1;
+      if (correctRaw) {
+        const c = correctRaw.split(/[,;|/]/)[0].trim().replace(/^(option|answer|choice)\s*/i, '').replace(/[.)]$/, '');
+        const byText = kept.findIndex(o => o.toLowerCase() === correctRaw.trim().toLowerCase() || o.toLowerCase() === c.toLowerCase());
+        if (byText >= 0) correct = byText;
+        else if (/^[a-f]$/i.test(c)) correct = map['abcdef'.indexOf(c.toLowerCase())] ?? -1;
+        else if (/^[1-6]$/.test(c)) correct = map[+c - 1] ?? -1;
+        if (correct < 0) { errors.push({ row: rowNo, msg: `Correct answer "${correctRaw}" doesn't match any option` }); return; }
+      } else if (starred >= 0) correct = map[starred];
+      if (!type) type = correct >= 0 ? 'quiz' : kept.length >= 2 ? 'mc' : /\b(one|single|a)\s+word\b|\bwords?\b/i.test(question) ? 'wordcloud' : 'open';
+      let warn = '';
+      const t = parseTime(timeRaw);
+      if (Number.isNaN(t)) warn = `Time "${timeRaw}" not understood, using ${defTime}s`;
+      const s = { ...newSlide(type), question: question.slice(0, 300) };
+      if (type === 'quiz') {
+        if (kept.length < 2) { errors.push({ row: rowNo, msg: 'A quiz question needs at least 2 answers' }); return; }
+        if (correct < 0) { errors.push({ row: rowNo, msg: 'No correct answer given' }); return; }
+        if (kept.length > 6) { errors.push({ row: rowNo, msg: 'Max 6 answers per quiz question' }); return; }
+        s.options = kept; s.correct = correct; s.time = t || defTime;
+      } else if (type === 'mc' || type === 'ranking') {
+        if (kept.length < 2) { errors.push({ row: rowNo, msg: 'Needs at least 2 options' }); return; }
+        s.options = kept.slice(0, 10);
+      } else if (type === 'scale') { if (kept.length) s.statements = kept.slice(0, 8); }
+      else if (type === 'content') { s.body = kept.join('\n').slice(0, 800); }
+      items.push({ row: rowNo, slide: s, warn });
+    });
+    return { items, errors };
+  }
+
+  function openCsv(mode) {
+    // mode: 'new' (create a presentation) | 'add' (insert into the open one)
+    const tplHead = CSV_TEMPLATE[0], tplRow = CSV_TEMPLATE[1];
+    const m = modal(`<div class="csv-modal">
+      <h3>Import questions from a spreadsheet</h3>
+      <p class="preview-note" style="margin:-6px 0 14px">One row per question. Works with Excel, Google Sheets or Numbers. Save or download the sheet as <b>.csv</b>.</p>
+      <label class="csv-drop" id="cDrop">
+        <span class="csv-ic">${icon('sheet')}</span>
+        <span><b id="cName">Choose a CSV file</b><small id="cSub">or drag and drop it here</small></span>
+        <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" id="cFile" hidden>
+      </label>
+      <div id="cBody">
+        <div class="csv-help">
+          <div class="csv-help-top"><b>Columns</b><button class="link-btn" id="cTpl">${icon('download')} Download template</button></div>
+          <div class="csv-tbl-wrap"><table class="csv-tbl ex"><tr>${tplHead.map(h => `<th>${h}</th>`).join('')}</tr><tr>${tplRow.map(c => `<td>${esc(c)}</td>`).join('')}</tr></table></div>
+          <ul class="csv-notes">
+            <li><b>Question</b> is the only column you must have.</li>
+            <li><b>Correct</b> can be a letter (A–F), a number (1–6) or the answer text. You can also put a <b>*</b> in front of the right answer instead.</li>
+            <li><b>Time</b> is in seconds (5–120). Leave it empty to use the default.</li>
+            <li><b>Type</b> is optional: quiz, poll, wordcloud, open, scale, ranking, qa or heading. Rows with a correct answer become quiz questions.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row csv-opts">
+        <label class="row" style="gap:8px;font-weight:600;font-size:14px">Default time
+          <select class="input" id="cTime" style="width:auto;padding:8px 10px">${[10, 15, 20, 30, 45, 60].map(t => `<option ${t === 20 ? 'selected' : ''} value="${t}">${t}s</option>`).join('')}</select></label>
+        <label class="switch"><input type="checkbox" id="cWrap" checked><span class="track"></span>Add Lobby + final Leaderboard</label>
+      </div>
+      <div class="csv-foot"><button class="btn" id="cCancel">Cancel</button><button class="btn primary" id="cGo" disabled>${mode === 'add' ? 'Add questions' : 'Create quiz'}</button></div>
+    </div>`);
+    m.querySelector('.modal').classList.add('wide');
+    let rows = null, fileName = '', parsed = null;
+    const body = m.querySelector('#cBody'), go = m.querySelector('#cGo');
+    m.querySelector('#cTpl').onclick = downloadCsvTemplate;
+    m.querySelector('#cCancel').onclick = () => m.remove();
+    const refresh = () => {
+      if (!rows) return;
+      parsed = csvToSlides(rows, +m.querySelector('#cTime').value);
+      const { items, errors } = parsed;
+      const nq = items.filter(x => x.slide.type === 'quiz').length;
+      const TN = { quiz: 'Quiz', mc: 'Poll', wordcloud: 'Word cloud', open: 'Open', scale: 'Scale', ranking: 'Ranking', qa: 'Q&A', content: 'Heading', lobby: 'Lobby', leaderboard: 'Leaderboard' };
+      body.innerHTML = `
+        <div class="csv-sum ${items.length ? 'ok' : 'bad'}">${items.length
+          ? `${icon('check')} <b>${items.length} question${items.length > 1 ? 's' : ''} ready</b>${nq && nq < items.length ? ` <span>(${nq} quiz)</span>` : ''}`
+          : `${icon('x')} <b>No questions found</b>`}${errors.length ? ` <em>· ${errors.length} row${errors.length > 1 ? 's' : ''} skipped</em>` : ''}</div>
+        ${errors.length ? `<div class="csv-errs">${errors.slice(0, 8).map(e => `<div>${e.row ? `Row ${e.row}: ` : ''}${esc(e.msg)}</div>`).join('')}${errors.length > 8 ? `<div>…and ${errors.length - 8} more</div>` : ''}</div>` : ''}
+        ${items.length ? `<div class="csv-list">${items.map((x, k) => {
+          const s = x.slide;
+          return `<div class="csv-item"><span class="ci-n">${k + 1}</span><div class="ci-main">
+            <div class="ci-q"><span class="ci-type t-${s.type}">${TN[s.type]}</span>${esc(s.question)}</div>
+            ${s.options ? `<div class="ci-opts">${s.options.map((o, i) => `<span class="${s.type === 'quiz' && i === s.correct ? 'right' : ''}">${s.type === 'quiz' && i === s.correct ? icon('check') : ''}${esc(o)}</span>`).join('')}</div>` : ''}
+            ${x.warn ? `<div class="ci-warn">${esc(x.warn)}</div>` : ''}
+          </div>${s.type === 'quiz' ? `<span class="ci-time">${icon('clock')}${s.time}s</span>` : ''}</div>`;
+        }).join('')}</div>` : `<p class="preview-note">Check the file has a <b>Question</b> column, or <button class="link-btn" id="cTpl2">download the template</button> to see the format.</p>`}`;
+      const t2 = body.querySelector('#cTpl2'); if (t2) t2.onclick = downloadCsvTemplate;
+      go.disabled = !items.length;
+      go.textContent = items.length ? (mode === 'add' ? `Add ${items.length} question${items.length > 1 ? 's' : ''}` : `Create quiz with ${items.length} question${items.length > 1 ? 's' : ''}`) : (mode === 'add' ? 'Add questions' : 'Create quiz');
+    };
+    const load = f => {
+      if (!f) return;
+      if (/\.(xlsx|xls|ods|numbers)$/i.test(f.name)) { toast('Save the sheet as .csv first (File → Save as / Download → CSV)'); return; }
+      fileName = f.name;
+      readTextFile(f).then(t => {
+        rows = csvRows(t);
+        m.querySelector('#cName').textContent = f.name;
+        m.querySelector('#cSub').textContent = `${rows.length} row${rows.length === 1 ? '' : 's'} · choose another file`;
+        m.querySelector('#cDrop').classList.add('loaded');
+        refresh();
+      });
+    };
+    m.querySelector('#cFile').onchange = e => { load(e.target.files[0]); e.target.value = ''; };
+    const drop = m.querySelector('#cDrop');
+    drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+    drop.ondragleave = () => drop.classList.remove('over');
+    drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); load(e.dataTransfer.files[0]); };
+    m.querySelector('#cTime').onchange = refresh;
+    go.onclick = () => {
+      if (!parsed || !parsed.items.length) return;
+      const slides = parsed.items.map(x => x.slide);
+      const hasQuiz = slides.some(s => s.type === 'quiz');
+      const wrap = m.querySelector('#cWrap').checked && hasQuiz;
+      const title = fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'My quiz';
+      if (mode === 'add' && deck && !deck.fresh) {
+        deck.slides.splice(sel + 1, 0, ...slides);
+        if (wrap) {
+          if (!deck.slides.some(s => s.type === 'lobby')) deck.slides.unshift(newSlide('lobby'));
+          const last = deck.slides[deck.slides.length - 1];
+          if (!last || last.type !== 'leaderboard') deck.slides.push(newSlide('leaderboard'));
+        }
+        if (hasQuiz) deck.settings.askNames = true;
+        sel = deck.slides.indexOf(slides[0]);
+        save(); renderAll();
+      } else if (mode === 'add' && deck) {
+        deck.slides = wrap ? [newSlide('lobby'), ...slides, newSlide('leaderboard')] : slides;
+        deck.fresh = false; sel = 0;
+        if (hasQuiz) deck.settings.askNames = true;
+        if (!deck.title || deck.title === 'Untitled presentation') deck.title = title;
+        save(); renderAll();
+      } else {
+        openDeck({ id: uid(), title, settings: { askNames: hasQuiz, theme: 'light' }, updated: Date.now(),
+          slides: wrap ? [newSlide('lobby'), ...slides, newSlide('leaderboard')] : slides });
+      }
+      m.remove(); toast(`Imported ${slides.length} question${slides.length > 1 ? 's' : ''} ✓`);
+    };
+  }
+
   function openTypePicker() {
     const m = modal(`<h3>Add a slide</h3><div class="type-grid">${Object.entries(TYPE_META).map(([t, x]) => `<button class="type-card" data-t="${t}"><span class="t-ic t-${t}">${icon(t)}</span><b>${x.name}</b><span>${x.desc}</span></button>`).join('')}</div>
-      <button class="link-btn" id="tBulk" style="margin-top:16px">${icon('paste')} Paste many quiz questions at once</button>`);
+      <div class="row" style="margin-top:16px;gap:22px;flex-wrap:wrap"><button class="link-btn" id="tBulk">${icon('paste')} Paste many quiz questions at once</button><button class="link-btn" id="tCsv">${icon('sheet')} Import questions from CSV</button></div>`);
     m.querySelector('#tBulk').onclick = () => { m.remove(); openBulk(); };
+    m.querySelector('#tCsv').onclick = () => { m.remove(); openCsv('add'); };
     m.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
       if (deck.fresh) { deck.fresh = false; deck.slides = [newSlide(b.dataset.t)]; sel = 0; }
       else { deck.slides.splice(sel + 1, 0, newSlide(b.dataset.t)); sel++; }
@@ -680,6 +947,7 @@ Jupiter"></textarea>
     save(); renderAll(); toast(`Created ${r.slides.length} slide${r.slides.length > 1 ? 's' : ''}`);
   };
   $('#stScratch').onclick = () => { deck.fresh = false; save(); renderAll(); panelTab = 'edit'; setTimeout(() => { const q = $('#pQ'); if (q) q.focus(); }, 60); };
+  $('#stCsv').onclick = () => openCsv('add');
   $('#stImport').onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; };
 
   $('#hImportFile').onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; };
@@ -691,6 +959,8 @@ Jupiter"></textarea>
         <button class="btn primary" id="mQuiz">${icon('quiz')} New quiz</button>
         <button class="btn" id="mNew">${icon('plus')} New blank</button>
         <button class="btn" id="mExport">${icon('download')} Export .json</button>
+        <button class="btn" id="mExportCsv">${icon('sheet')} Export .csv</button>
+        <button class="btn" id="mCsv">${icon('sheet')} Import .csv</button>
         <label class="btn" style="cursor:pointer">${icon('paste')} Import .json<input type="file" accept=".json,application/json" id="mImport" hidden></label>
       </div>
       <p class="preview-note" style="margin-top:14px">Presentations are saved in this browser. Download a .json copy to move them to another computer.</p>`);
@@ -715,6 +985,8 @@ Jupiter"></textarea>
       a.href = URL.createObjectURL(new Blob([JSON.stringify(deck, null, 2)], { type: 'application/json' }));
       a.download = (deck.title || 'tickbox').replace(/[^\w-]+/g, '_') + '.json'; a.click();
     };
+    m.querySelector('#mExportCsv').onclick = () => exportCsv(deck);
+    m.querySelector('#mCsv').onclick = () => { m.remove(); openCsv('add'); };
     m.querySelector('#mImport').onchange = e => {
       const f = e.target.files[0]; if (!f) return;
       f.text().then(t => {
