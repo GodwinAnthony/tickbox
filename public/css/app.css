@@ -21,8 +21,8 @@
   --radius: 18px;
   --shadow: 0 1px 2px rgba(23,19,43,.06), 0 8px 24px -12px rgba(23,19,43,.18);
   --shadow-lg: 0 2px 4px rgba(23,19,43,.06), 0 24px 48px -20px rgba(23,19,43,.35);
-  --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
-  --font: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Noto Sans Malayalam', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Segoe UI', system-ui, sans-serif;
+  --font: 'DM Sans', 'Noto Sans Malayalam', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
@@ -1126,3 +1126,7 @@ a.btn { text-decoration: none; }
 .pod.p2 .pod-block { height: 32%; }
 .pod.p3 .pod-block { height: 22%; }
 .pod-name { overflow-wrap: normal; word-break: normal; width: 100%; }
+
+/* Indian-language text */
+.ind { letter-spacing: 0; line-height: 1.38; }
+.slide-q .ind { line-height: 1.32; }
