@@ -2,7 +2,7 @@
    TickBox presenter: slide editor + live presentation mode
    ============================================================ */
 (function () {
-  const { render, demoData, COLORS, TYPE_META, esc, icon } = window.TBViz;
+  const { render, demoData, COLORS, TYPE_META, esc, rich, icon } = window.TBViz;
   const $ = s => document.querySelector(s);
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
   const LS_DECKS = 'tickbox.decks', LS_CUR = 'tickbox.current', LS_LIVE = 'tickbox.live';
@@ -848,8 +848,8 @@ Jupiter"></textarea>
         ${items.length ? `<div class="csv-list">${items.map((x, k) => {
           const s = x.slide;
           return `<div class="csv-item"><span class="ci-n">${k + 1}</span><div class="ci-main">
-            <div class="ci-q"><span class="ci-type t-${s.type}">${TN[s.type]}</span>${esc(s.question)}</div>
-            ${s.options ? `<div class="ci-opts">${s.options.map((o, i) => `<span class="${s.type === 'quiz' && i === s.correct ? 'right' : ''}">${s.type === 'quiz' && i === s.correct ? icon('check') : ''}${esc(o)}</span>`).join('')}</div>` : ''}
+            <div class="ci-q"><span class="ci-type t-${s.type}">${TN[s.type]}</span>${rich(s.question)}</div>
+            ${s.options ? `<div class="ci-opts">${s.options.map((o, i) => `<span class="${s.type === 'quiz' && i === s.correct ? 'right' : ''}">${s.type === 'quiz' && i === s.correct ? icon('check') : ''}${rich(o)}</span>`).join('')}</div>` : ''}
             ${x.warn ? `<div class="ci-warn">${esc(x.warn)}</div>` : ''}
           </div>${s.type === 'quiz' ? `<span class="ci-time">${icon('clock')}${s.time}s</span>` : ''}</div>`;
         }).join('')}</div>` : `<p class="preview-note">Check the file has a <b>Question</b> column, or <button class="link-btn" id="cTpl2">download the template</button> to see the format.</p>`}`;

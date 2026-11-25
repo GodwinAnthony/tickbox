@@ -70,6 +70,18 @@
   };
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // flag emojis -> real flag images (Windows has no flag emoji font)
+  const FLAG_RE = /\uD83C[\uDDE6-\uDDFF]\uD83C[\uDDE6-\uDDFF]/g;
+  const flagImg = (f, cls) => { const cc = [...f].map(c => String.fromCharCode(c.codePointAt(0) - 0x1F1E6 + 97)).join(''); return `<img class="${cls}" src="https://flagcdn.com/${cc}.svg" alt="${f}" data-e="${f}" draggable="false" onerror="this.replaceWith(this.dataset.e)">`; };
+  const rich = s => esc(s).replace(FLAG_RE, f => flagImg(f, 'flag-emo'));
+  // question text: flags at the end are shown big under the text
+  const richQ = s => {
+    s = String(s == null ? '' : s);
+    const m = s.match(/(?:\uD83C[\uDDE6-\uDDFF]\uD83C[\uDDE6-\uDDFF]\s*)+$/);
+    if (!m) return rich(s);
+    const text = s.slice(0, m.index).trim(), flags = m[0].match(FLAG_RE);
+    return `${text ? rich(text) : ''}<span class="q-flags ${text ? '' : 'solo'}">${flags.map(f => flagImg(f, 'flag-big')).join('')}</span>`;
+  };
   const hash = s => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
 
   function tween(el, to, fmt) {
@@ -118,8 +130,8 @@
   function buildFrame(stage, slide, opts) {
     const sub = subtitle(slide, opts);
     stage.innerHTML = slide.type === 'content'
-      ? `<div class="slide content-slide ${opts.noAnim ? '' : 'slide-enter'}"><h2 class="slide-q">${esc(slide.question || 'Heading')}</h2>${slide.body ? `<div class="body">${esc(slide.body)}</div>` : ''}</div>`
-      : `<div class="slide ${opts.noAnim ? '' : 'slide-enter'}"><h2 class="slide-q">${esc(slide.question || 'Your question here')}</h2>${sub ? `<div class="slide-sub">${sub}</div>` : ''}<div class="viz"></div></div>`;
+      ? `<div class="slide content-slide ${opts.noAnim ? '' : 'slide-enter'}"><h2 class="slide-q">${richQ(slide.question || 'Heading')}</h2>${slide.body ? `<div class="body">${rich(slide.body)}</div>` : ''}</div>`
+      : `<div class="slide ${opts.noAnim ? '' : 'slide-enter'}"><h2 class="slide-q">${richQ(slide.question || 'Your question here')}</h2>${sub ? `<div class="slide-sub">${sub}</div>` : ''}<div class="viz"></div></div>`;
   }
 
   function subtitle(slide, opts) {
@@ -149,7 +161,7 @@
       first = true;
       const wrap = document.createElement('div');
       wrap.className = 'cols';
-      wrap.innerHTML = labels.map((o, i) => `<div class="col" style="--c:${palette[i % palette.length]}"><div class="col-val"><span class="num">0</span><span class="pct">0%</span></div><div class="bar-track"><div class="bar"></div></div><div class="col-label">${esc(o)}</div></div>`).join('');
+      wrap.innerHTML = labels.map((o, i) => `<div class="col" style="--c:${palette[i % palette.length]}"><div class="col-val"><span class="num">0</span><span class="pct">0%</span></div><div class="bar-track"><div class="bar"></div></div><div class="col-label">${rich(o)}</div></div>`).join('');
       viz.appendChild(wrap);
       st.cols = [...wrap.children];
     }
@@ -209,7 +221,7 @@
         const n = slide.options.length;
         viz.insertAdjacentHTML('beforeend', `<div class="qrun">
           <div class="qr-center"><div class="qr-time">0:00</div><div class="qr-count"><b>0</b></div><div class="qr-lbl">answers</div></div>
-          <div class="qr-opts" style="grid-template-columns:repeat(${n},1fr)">${slide.options.map((o, i) => `<div class="qr-opt" style="--c:${QUIZ_COLORS[i]};animation-delay:${i * 80}ms"><svg class="shape" viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${esc(o)}</span></div>`).join('')}</div></div>`);
+          <div class="qr-opts" style="grid-template-columns:repeat(${n},1fr)">${slide.options.map((o, i) => `<div class="qr-opt" style="--c:${QUIZ_COLORS[i]};animation-delay:${i * 80}ms"><svg class="shape" viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${rich(o)}</span></div>`).join('')}</div></div>`);
         st.endsAt = Date.now() + (data.remaining != null ? data.remaining : slide.time * 1000);
         const tEl = viz.querySelector('.qr-time');
         const fmt = ms => { const s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
@@ -224,7 +236,7 @@
         const grid = document.createElement('div');
         grid.className = 'quiz-grid' + (phase === 'run' ? ' running' : opts.host ? ' qwait' : '');
         grid.style.gridTemplateRows = `repeat(${Math.ceil(slide.options.length / 2)}, 1fr)`;
-        grid.innerHTML = slide.options.map((o, i) => `<div class="quiz-opt" style="--c:${QUIZ_COLORS[i]};animation-delay:${i * 70}ms"><svg class="shape" viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${esc(o)}</span></div>`).join('');
+        grid.innerHTML = slide.options.map((o, i) => `<div class="quiz-opt" style="--c:${QUIZ_COLORS[i]};animation-delay:${i * 70}ms"><svg class="shape" viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${rich(o)}</span></div>`).join('');
         viz.appendChild(grid);
         if (phase === 'run') {
           const t = document.createElement('div');
@@ -685,5 +697,5 @@
   });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => hydrateIcons()); else hydrateIcons();
 
-  window.TBViz = { AVATARS, hydrateIcons, render, demoData, COLORS, QUIZ_COLORS, SHAPES, TYPE_META, esc, tween, icon };
+  window.TBViz = { AVATARS, hydrateIcons, render, demoData, COLORS, QUIZ_COLORS, SHAPES, TYPE_META, esc, rich, richQ, tween, icon };
 })();

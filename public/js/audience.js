@@ -2,7 +2,7 @@
    TickBox audience (phone) app
    ============================================================ */
 (function () {
-  const { render, esc, QUIZ_COLORS, SHAPES, icon } = window.TBViz;
+  const { render, esc, rich, richQ, QUIZ_COLORS, SHAPES, icon } = window.TBViz;
   const badge = (name, cls) => `<div class="badge-ic ${cls || ''}">${icon(name)}</div>`;
   const $ = s => document.querySelector(s);
   const main = $('#main');
@@ -160,7 +160,7 @@
     updateResults();
   }
 
-  const header = (s, hint) => `<h1 class="aud-q">${esc(s.question)}</h1>${hint ? `<p class="aud-hint">${hint}</p>` : ''}`;
+  const header = (s, hint) => `<h1 class="aud-q">${richQ(s.question)}</h1>${hint ? `<p class="aud-hint">${hint}</p>` : ''}`;
   const resultsBox = () => state.showOnPhones ? `<div class="phone-results"><div class="stage" id="phoneStage" style="position:absolute;inset:0"></div></div>` : '';
   const thanks = (title, sub) => `<div class="thanks">${TICK}<h2>${title}</h2><p>${sub || 'Look at the screen to see the results'}</p></div>`;
   const closed = s => header(s) + `<div class="thanks">${badge('lock')}<h2>Voting is closed</h2><p>Wait for the presenter to continue</p></div>` + resultsBox();
@@ -185,7 +185,7 @@
   const V = {};
 
   V.content = s => {
-    main.innerHTML = `<div class="waiting"><div>${badge('eye')}<h2>${esc(s.question || 'Look at the screen')}</h2><p>${s.body ? esc(s.body) : 'Get ready — the next question is coming up'}</p></div></div>`;
+    main.innerHTML = `<div class="waiting"><div>${badge('eye')}<h2>${richQ(s.question || 'Look at the screen')}</h2><p>${s.body ? rich(s.body) : 'Get ready — the next question is coming up'}</p></div></div>`;
   };
 
   V.lobby = () => {
@@ -208,7 +208,7 @@
     if (!state.open) { main.innerHTML = closed(s); return; }
     draft.sel = draft.sel || [];
     main.innerHTML = header(s, s.multiple ? 'Choose one or more' : 'Choose one') +
-      s.options.map((o, i) => `<button class="choice ${s.multiple ? '' : 'radio'} ${draft.sel.includes(i) ? 'sel' : ''}" data-i="${i}"><span class="box"></span>${esc(o)}</button>`).join('');
+      s.options.map((o, i) => `<button class="choice ${s.multiple ? '' : 'radio'} ${draft.sel.includes(i) ? 'sel' : ''}" data-i="${i}"><span class="box"></span>${rich(o)}</button>`).join('');
     const btn = submitBar('Submit', draft.sel.length > 0, () => send(draft.sel));
     main.querySelectorAll('.choice').forEach(b => b.onclick = () => {
       const i = +b.dataset.i;
@@ -302,7 +302,7 @@
       return;
     }
     if (!q.started) {
-      main.innerHTML = `<div class="waiting"><div>${badge('quiz', 'amber')}<h2>${esc(s.question)}</h2><p>${s.time} seconds · the faster you answer, the more points</p></div></div>`;
+      main.innerHTML = `<div class="waiting"><div>${badge('quiz', 'amber')}<h2>${richQ(s.question)}</h2><p>${s.time} seconds · the faster you answer, the more points</p></div></div>`;
       return;
     }
     if (q.readyIn > 0) {
@@ -315,7 +315,7 @@
           mode = m;
           main.innerHTML = m === 'banner'
             ? `<div class="waiting"><div>${badge('clock')}<h2>Answer quickly to get more points!</h2><p>The question is coming up…</p></div></div>`
-            : `<div class="waiting"><div><div class="count-big" id="cd">${Math.ceil(left / 1000)}</div><h2>${esc(s.question)}</h2><p>Read the question — answers appear in a moment</p></div></div>`;
+            : `<div class="waiting"><div><div class="count-big" id="cd">${Math.ceil(left / 1000)}</div><h2>${richQ(s.question)}</h2><p>Read the question — answers appear in a moment</p></div></div>`;
         }
         const el = $('#cd');
         if (!el && mode === 'read') return;
@@ -338,8 +338,8 @@
     main.classList.add('quiz-run');
     const longest = Math.max(...s.options.map(o => o.length));
     const size = longest > 40 ? 'sm' : longest > 22 ? 'md' : 'lg';
-    main.innerHTML = `<div class="quiz-bar"><i id="qb"></i></div><h1 class="aud-q quiz-q">${esc(s.question)}</h1>` +
-      `<div class="quiz-tiles stack n${s.options.length} ${size}">${s.options.map((o, i) => `<button class="quiz-tile" style="--c:${QUIZ_COLORS[i]}" data-i="${i}"><svg viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${esc(o)}</span></button>`).join('')}</div>`;
+    main.innerHTML = `<div class="quiz-bar"><i id="qb"></i></div><h1 class="aud-q quiz-q">${richQ(s.question)}</h1>` +
+      `<div class="quiz-tiles stack n${s.options.length} ${size}">${s.options.map((o, i) => `<button class="quiz-tile" style="--c:${QUIZ_COLORS[i]}" data-i="${i}"><svg viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${rich(o)}</span></button>`).join('')}</div>`;
     main.querySelectorAll('.quiz-tile').forEach(b => b.onclick = () => {
       main.querySelectorAll('.quiz-tile').forEach(x => { x.disabled = true; x.classList.toggle('faded', x !== b); });
       send(+b.dataset.i);
