@@ -362,6 +362,27 @@ function boardData(room, prevRank, gain, limit = 10) {
   }));
 }
 
+function sessionSummary(room) {
+  const total = room.participants.size;
+  const active = new Set();
+  for (const m of Object.values(room.responses)) for (const pid of m.keys()) active.add(pid);
+  for (const list of Object.values(room.qa)) for (const q of list) active.add(q.pid);
+  let qTot = 0, qOk = 0;
+  for (const s of room.deck.slides) {
+    if (s.type !== 'quiz' || !room.responses[s.id]) continue;
+    for (const v of room.responses[s.id].values()) { qTot++; if (v === s.correct) qOk++; }
+  }
+  return {
+    title: room.deck.title,
+    participants: total,
+    engagement: total ? Math.round(active.size / total * 100) : 0,
+    quiz: qTot ? Math.round(qOk / qTot * 100) : null,
+    questions: Object.values(room.qa).reduce((a, l) => a + l.length, 0),
+    winners: boardData(room, null, null, 3).map(r => ({ name: r.name, score: r.score, av: r.av })),
+    at: Date.now(),
+  };
+}
+
 function respondersCount(room, slide) {
   if (slide.type === 'qa') return (room.qa[slide.id] || []).length;
   return (room.responses[slide.id] || new Map()).size;
@@ -586,8 +607,9 @@ io.on('connection', socket => {
     if (q) { q.answered = !!p.answered; room.dirtyHost = room.dirtyAud = true; }
   });
 
-  socket.on('host:end', () => {
+  socket.on('host:end', (p, cb) => {
     const room = hostRoom(socket); if (!room) return;
+    if (typeof cb === 'function') cb({ ok: true, summary: sessionSummary(room) });
     room.ended = true;
     clearTimeout(room.quizTimer);
     broadcastState(room);
