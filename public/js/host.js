@@ -137,52 +137,190 @@
     });
   }
 
-  function showHome() {
-    flushSave();
-    deck = null;
-    history.replaceState(null, '', location.pathname);
-    $('#editor').classList.add('hidden');
-    $('#home').classList.remove('hidden');
-    document.title = 'TickBox — Presentations';
-    const tpls = TEMPLATES.map(t => ({ t, d: t.make() }));
-    $('#tplGrid').innerHTML = tpls.map(({ t, d }, k) => `
-      <button class="tpl-card" data-tpl="${k}">
-        ${miniThumb(d, t.show)}
-        <span class="tpl-meta"><b>${esc(t.name)}</b><small>${esc(t.desc)}</small><span class="tpl-count">${d.slides.length} slides</span></span>
-      </button>`).join('');
-    paintThumbs($('#tplGrid'), tpls.map(({ t, d }) => ({ d, i: t.show })));
-    $('#tplGrid').querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => openDeck(TEMPLATES[+b.dataset.tpl].make()));
+  const LS_RESULTS = 'tickbox.results';
+  let homeView = 'home';
+  const results0 = () => store.get(LS_RESULTS, {});
 
-    const list = Object.values(decks).sort((a, b) => b.updated - a.updated);
-    $('#deckGrid').innerHTML = list.length ? list.map(d => `
-      <div class="deck-card" data-id="${d.id}" tabindex="0">
+  function deckCard(d) {
+    const res = results0()[d.id];
+    return `<div class="deck-card" data-id="${d.id}" tabindex="0">
         ${miniThumb(d, 0)}
-        <div class="dc-meta"><b>${esc(d.title || 'Untitled')}</b><small>${d.slides.length} slide${d.slides.length === 1 ? '' : 's'} · edited ${ago(d.updated)}</small></div>
+        <div class="dc-meta"><b>${esc(d.title || 'Untitled')}</b><small>${res ? '<span class="res-dot"></span>Results available · ' : ''}${d.slides.length} slide${d.slides.length === 1 ? '' : 's'} · ${ago(d.updated)}</small></div>
         <div class="dc-actions">
           <button class="ibtn" data-act="dup" title="Duplicate">${icon('copy')}</button>
           <button class="ibtn" data-act="export" title="Download .json">${icon('download')}</button>
           <button class="ibtn danger" data-act="del" title="Delete">${icon('trash')}</button>
         </div>
-      </div>`).join('') : `<div class="deck-empty">${icon('folder', 'big')}<br>No presentations yet — start from scratch or pick a template above.</div>`;
-    paintThumbs($('#deckGrid'), list.map(d => ({ d, i: 0 })));
-    $('#deckGrid').querySelectorAll('.deck-card').forEach(card => {
+      </div>`;
+  }
+
+  function bindDeckCards(root) {
+    root.querySelectorAll('.deck-card').forEach(card => {
       const d = decks[card.dataset.id];
       card.onclick = e => {
         const act = e.target.closest('[data-act]');
         if (!act) return openDeck(d);
         e.stopPropagation();
         if (act.dataset.act === 'dup') {
-          const c = JSON.parse(JSON.stringify(d)); c.id = uid(); c.title = d.title + ' (copy)'; c.updated = Date.now();
-          c.slides.forEach(s => { s.id = uid(); });
+          const c = JSON.parse(JSON.stringify(d)); c.id = uid(); c.title = (d.title || 'Untitled') + ' (copy)'; c.updated = Date.now();
+          c.slides.forEach(sl => { sl.id = uid(); }); delete c.fresh;
           decks[c.id] = c; flushSave(); showHome(); toast('Duplicated');
         } else if (act.dataset.act === 'export') exportDeck(d);
         else if (act.dataset.act === 'del') {
           if (!confirm('Delete "' + (d.title || 'Untitled') + '"? This cannot be undone.')) return;
-          delete decks[d.id]; flushSave(); showHome();
+          delete decks[d.id]; const r = results0(); delete r[d.id]; store.set(LS_RESULTS, r); flushSave(); showHome();
         }
       };
       card.onkeydown = e => { if (e.key === 'Enter') openDeck(d); };
     });
+  }
+
+  function tplCards() {
+    return TEMPLATES.map((t, k) => `
+      <button class="tpl-card" data-tpl="${k}">
+        <div class="thumb-frame" data-tpl-thumb="${k}"><div class="stage"></div></div>
+        <span class="tpl-meta"><b>${esc(t.name)}</b><small>${esc(t.desc)}</small></span>
+      </button>`).join('');
+  }
+
+  function showHome(view) {
+    flushSave();
+    deck = null;
+    if (view) homeView = view;
+    history.replaceState(null, '', location.pathname);
+    $('#editor').classList.add('hidden');
+    $('#home').classList.remove('hidden');
+    document.title = 'TickBox — Presentations';
+    document.querySelectorAll('.side-nav .sn').forEach(b => b.classList.toggle('on', b.dataset.view === homeView));
+    const list = Object.values(decks).filter(d => d.slides && d.slides.length).sort((a, b) => b.updated - a.updated);
+    const res = results0();
+    const latest = Object.entries(res).filter(([id]) => decks[id]).sort((a, b) => b[1].at - a[1].at)[0];
+    const main = $('#homeMain');
+    const tplItems = TEMPLATES.map(t => ({ d: t.make(), i: t.show }));
+
+    if (homeView === 'home') {
+      main.innerHTML = `
+        <h1 class="home-h1">${list.length ? 'Welcome back' : 'Welcome to TickBox'}</h1>
+        <div class="ask-wrap">
+          <h2 class="ask-title">What would you like to create?</h2>
+          <div class="ask-box">
+            <textarea id="hAsk" rows="3" placeholder="Type or paste your questions…  e.g.&#10;Which planet is the Red Planet?&#10;Venus&#10;*Mars&#10;Jupiter"></textarea>
+            <button class="ask-go" id="hAskGo" title="Create presentation" disabled>${icon('arrowup')}</button>
+          </div>
+          <div class="st-hint" id="hAskHint">Each question becomes a slide · answers marked with * become quiz questions</div>
+          <div class="quick-chips">
+            <span>Or start with</span>
+            ${TEMPLATES.map((t, k) => `<button class="qchip" data-tpl="${k}">${icon(['quiz', 'wordcloud', 'qa'][k])}${esc(t.name)}</button>`).join('')}
+            <button class="qchip" id="hBlank2">${icon('plus')}Blank</button>
+          </div>
+        </div>
+        ${latest ? (() => {
+          const [id, r] = latest;
+          return `<div class="home-sec"><h2>Recent results</h2></div>
+          <div class="res-card" data-open="${id}">
+            <div class="rc-head"><span class="t-ic t-leaderboard">${icon('leaderboard')}</span><div><b>${esc(decks[id].title || r.title)}</b><small>Last session ${ago(r.at)}</small></div>
+              <button class="btn sm" data-open="${id}">Open</button></div>
+            <div class="rc-stats">
+              <div><small>Participants</small><b>${r.participants}</b></div>
+              <div><small>Engagement</small><b>${r.engagement}%</b></div>
+              <div><small>Quiz</small><b>${r.quiz == null ? '—' : r.quiz + '%'}</b><small>${r.quiz == null ? 'no quiz' : 'correct answers'}</small></div>
+              <div><small>Q&amp;A</small><b>${r.questions || 0}</b><small>${r.questions === 1 ? 'question' : 'questions'}</small></div>
+              ${r.winners && r.winners.length ? `<div class="rc-win"><small>Winners</small><span>${r.winners.map((w, i) => `<i title="${esc(w.name)} · ${w.score} pts">${(window.TBViz.AVATARS || [])[(w.av || 0) % 24] || ''}<em>${i + 1}</em></i>`).join('')}</span><small>${esc(r.winners[0].name)} won</small></div>` : ''}
+            </div>
+          </div>`;
+        })() : ''}
+        <div class="home-sec"><h2>Recently viewed</h2>${list.length > 4 ? '<button class="link-btn" data-goto="mine">See all</button>' : ''}</div>
+        <div class="deck-grid four">${list.length ? list.slice(0, 4).map(deckCard).join('') : `<div class="deck-empty">${icon('folder', 'big')}<br>No presentations yet — type some questions above or pick a template.</div>`}</div>`;
+    } else if (homeView === 'mine') {
+      main.innerHTML = `
+        <h1 class="home-h1">My presentations</h1>
+        <div class="deck-grid">${list.length ? list.map(deckCard).join('') : `<div class="deck-empty">${icon('folder', 'big')}<br>No presentations yet.</div>`}</div>`;
+    } else {
+      main.innerHTML = `
+        <h1 class="home-h1">Templates</h1>
+        <div class="tpl-grid">${tplCards()}</div>
+        <div class="home-sec"><h2>Other ways to start</h2></div>
+        <div class="create-row">
+          <button class="create-card primary-card" data-new="blank"><span class="cc-ic">${icon('plus')}</span><span><b>Start from scratch</b><small>A blank presentation.</small></span></button>
+          <button class="create-card" data-new="paste"><span class="cc-ic amber">${icon('paste')}</span><span><b>Paste quiz questions</b><small>Turn a list into a ready quiz.</small></span></button>
+          <button class="create-card" data-new="import"><span class="cc-ic sky">${icon('download')}</span><span><b>Import a file</b><small>Open a TickBox .json file.</small></span></button>
+        </div>`;
+      main.querySelectorAll('[data-tpl-thumb]').forEach(fr => {
+        const k = +fr.dataset.tplThumb; fr.classList.add('theme-' + themeOf(tplItems[k].d));
+      });
+    }
+    paintThumbs(main, [...main.querySelectorAll('[data-deck-thumb]')].map(fr => {
+      const id = fr.closest('.deck-card').dataset.id; return { d: decks[id], i: 0 };
+    }));
+    main.querySelectorAll('[data-tpl-thumb]').forEach(fr => {
+      const { d, i } = tplItems[+fr.dataset.tplThumb]; const sl = d.slides[i];
+      fr.style.setProperty('--s', (fr.clientWidth || 300) / 960);
+      render(fr.querySelector('.stage'), sl, demoData(sl), { noAnim: true, joinUrl: location.host + '/join', qrSrc: qrUrl(), code: '123 456' });
+    });
+    bindDeckCards(main);
+    main.querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => openDeck(TEMPLATES[+b.dataset.tpl].make()));
+    main.querySelectorAll('[data-open]').forEach(b => b.onclick = e => { e.stopPropagation(); openDeck(decks[b.dataset.open]); });
+    main.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => showHome(b.dataset.goto));
+    main.querySelectorAll('[data-new]').forEach(b => b.onclick = () => newFrom(b.dataset.new));
+    const blank2 = $('#hBlank2'); if (blank2) blank2.onclick = () => newFrom('blank');
+    const ask = $('#hAsk');
+    if (ask) {
+      const go = $('#hAskGo'), hint = $('#hAskHint');
+      ask.oninput = () => {
+        const r = smartParse(ask.value);
+        go.disabled = !r.slides.length;
+        hint.textContent = r.slides.length ? describeParse(r) : 'Each question becomes a slide · answers marked with * become quiz questions';
+      };
+      ask.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) go.click(); };
+      go.onclick = () => {
+        const r = smartParse(ask.value); if (!r.slides.length) return;
+        const d = { ...blankDeck(), title: r.title, settings: { askNames: r.quiz > 0, theme: 'light' }, slides: wrapQuiz(r) };
+        openDeck(d); toast(`Created ${r.slides.length} slide${r.slides.length > 1 ? 's' : ''}`);
+      };
+    }
+  }
+
+  /* text -> slides, no AI needed: blocks separated by blank lines.
+     First line = question; following lines = answers. "*" marks the right answer (quiz). */
+  function smartParse(text) {
+    const clean = l => l.replace(/^\s*(q(uestion)?\s*)?\d+\s*[.):-]\s*/i, '').replace(/^\s*([-•]|[a-fA-F][.)])\s+/, '').trim();
+    let blocks = text.replace(/\r/g, '').split(/\n\s*\n/).map(b => b.split('\n').map(l => l.trim()).filter(Boolean)).filter(b => b.length);
+    // a single block made only of questions ("…?") = one slide per line
+    blocks = blocks.flatMap(b => (b.length > 1 && b.every(l => /\?\s*$/.test(l))) ? b.map(l => [l]) : [b]);
+    const slides = []; let quiz = 0;
+    blocks.forEach(b => {
+      const q = clean(b[0]);
+      if (!q) return;
+      let correct = -1;
+      const opts = b.slice(1, 9).map((l, i) => {
+        let t = l.trim();
+        if (/^\*/.test(t) || /\*$/.test(t) || /\(correct\)$/i.test(t)) { correct = i; t = t.replace(/^\*+|\*+$/g, '').replace(/\(correct\)$/i, ''); }
+        return clean(t);
+      }).filter(Boolean);
+      if (opts.length >= 2 && correct >= 0 && correct < opts.length) { slides.push({ ...newSlide('quiz'), question: q, options: opts.slice(0, 6), correct: Math.min(correct, 5), time: 20 }); quiz++; }
+      else if (opts.length >= 2) slides.push({ ...newSlide('mc'), question: q, options: opts });
+      else if (/\b(one|single|a)\s+word\b|\bwords?\b/i.test(q)) slides.push({ ...newSlide('wordcloud'), question: q });
+      else slides.push({ ...newSlide('open'), question: q });
+    });
+    const title = quiz ? 'My quiz' : slides.length ? (slides[0].question.length > 40 ? slides[0].question.slice(0, 40) + '…' : slides[0].question) : 'Untitled presentation';
+    return { slides, quiz, title };
+  }
+  function describeParse(r) {
+    const c = {}; r.slides.forEach(s => { c[s.type] = (c[s.type] || 0) + 1; });
+    const names = { quiz: 'quiz question', mc: 'poll', wordcloud: 'word cloud', open: 'open question' };
+    return 'Will create ' + Object.entries(c).map(([t, n]) => `${n} ${names[t]}${n > 1 ? 's' : ''}`).join(', ') + (r.quiz ? ' + lobby and leaderboard' : '') + ' · Ctrl+Enter';
+  }
+  function wrapQuiz(r) {
+    if (!r.quiz) return r.slides;
+    return [newSlide('lobby'), ...r.slides, newSlide('leaderboard')];
+  }
+
+  function newFrom(kind) {
+    $('#hNewMenu').classList.add('hidden');
+    if (kind === 'blank') openDeck({ ...blankDeck(), fresh: true });
+    else if (kind === 'quiz') openDeck(quizDeck());
+    else if (kind === 'paste') openDeck({ id: uid(), title: 'My quiz', settings: { askNames: true, theme: 'light' }, updated: Date.now(), slides: [newSlide('lobby')] }, () => openBulk());
+    else if (kind === 'import') $('#hImportFile').click();
   }
 
   function openDeck(d, after) {
@@ -228,6 +366,7 @@
     setTheme($('#canvas'), themeOf(deck));
     $('#stripHost').textContent = location.host + '/join';
     renderList(); renderPanel(); renderPreview();
+    updateStarter();
   }
 
   function renderPanel() {
@@ -505,18 +644,44 @@ Jupiter"></textarea>
       <button class="link-btn" id="tBulk" style="margin-top:16px">${icon('paste')} Paste many quiz questions at once</button>`);
     m.querySelector('#tBulk').onclick = () => { m.remove(); openBulk(); };
     m.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
-      deck.slides.splice(sel + 1, 0, newSlide(b.dataset.t)); sel++; save(); renderAll(); m.remove();
+      if (deck.fresh) { deck.fresh = false; deck.slides = [newSlide(b.dataset.t)]; sel = 0; }
+      else { deck.slides.splice(sel + 1, 0, newSlide(b.dataset.t)); sel++; }
+      save(); renderAll(); m.remove();
       setTimeout(() => { const q = $('#pQ'); if (q) { q.focus(); q.select(); } }, 50);
     });
   }
 
   $('#btnDecks').onclick = () => showHome();
   $('#btnHome').onclick = () => showHome();
-  $('#hBlank').onclick = () => openDeck(blankDeck(), () => setTimeout(() => { const q = $('#pQ'); if (q) q.focus(); }, 60));
-  $('#hPaste').onclick = () => {
-    const d = { id: uid(), title: 'My quiz', settings: { askNames: true, theme: 'light' }, updated: Date.now(), slides: [newSlide('lobby')] };
-    openDeck(d, () => openBulk());
+  $('#hNew').onclick = e => { e.stopPropagation(); $('#hNewMenu').classList.toggle('hidden'); };
+  $('#hNewMenu').querySelectorAll('[data-new]').forEach(b => b.onclick = () => newFrom(b.dataset.new));
+  document.addEventListener('click', e => { if (!e.target.closest('.new-wrap')) $('#hNewMenu').classList.add('hidden'); });
+  document.querySelectorAll('.side-nav [data-view]').forEach(b => b.onclick = () => showHome(b.dataset.view));
+
+  /* blank presentation starter ("What would you like to create?") */
+  function updateStarter() {
+    const on = !!(deck && deck.fresh);
+    $('#starter').classList.toggle('hidden', !on);
+    $('#canvas').classList.toggle('hidden', on);
+    $('#quickAdd').classList.toggle('hidden', on);
+    if (on) { $('#stText').value = ''; $('#stGo').disabled = true; setTimeout(() => $('#stText').focus(), 50); }
+  }
+  $('#stText').oninput = () => {
+    const r = smartParse($('#stText').value);
+    $('#stGo').disabled = !r.slides.length;
+    $('#stHint').textContent = r.slides.length ? describeParse(r) : 'Each question becomes a slide · answers marked with * become quiz questions';
   };
+  $('#stText').onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('#stGo').click(); };
+  $('#stGo').onclick = () => {
+    const r = smartParse($('#stText').value); if (!r.slides.length) return;
+    deck.slides = wrapQuiz(r); deck.fresh = false; sel = 0;
+    if (r.quiz) deck.settings.askNames = true;
+    if (!deck.title || deck.title === 'Untitled presentation') deck.title = r.title;
+    save(); renderAll(); toast(`Created ${r.slides.length} slide${r.slides.length > 1 ? 's' : ''}`);
+  };
+  $('#stScratch').onclick = () => { deck.fresh = false; save(); renderAll(); panelTab = 'edit'; setTimeout(() => { const q = $('#pQ'); if (q) q.focus(); }, 60); };
+  $('#stImport').onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; };
+
   $('#hImportFile').onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; };
   const oldDecksModal = () => {
     const list = Object.values(decks).sort((a, b) => b.updated - a.updated);
@@ -568,7 +733,9 @@ Jupiter"></textarea>
   document.querySelectorAll('.ptab').forEach(b => b.onclick = () => { panelTab = b.dataset.tab; renderPanel(); });
   document.querySelectorAll('#quickAdd [data-q]').forEach(b => b.onclick = () => {
     if (b.dataset.q === 'more') return openTypePicker();
-    deck.slides.splice(sel + 1, 0, newSlide(b.dataset.q)); sel++; panelTab = 'edit'; save(); renderAll();
+    if (deck.fresh) { deck.fresh = false; deck.slides = [newSlide(b.dataset.q)]; sel = 0; }
+    else { deck.slides.splice(sel + 1, 0, newSlide(b.dataset.q)); sel++; }
+    panelTab = 'edit'; save(); renderAll();
     setTimeout(() => { const q = $('#pQ'); if (q) { q.focus(); q.select(); } }, 50);
   });
   $('#qaPaste').onclick = () => openBulk();
@@ -780,7 +947,11 @@ Jupiter"></textarea>
   $('#cFull').onclick = toggleFull;
   $('#cEnd').onclick = () => {
     if (!confirm('End this live session? Participants will be disconnected. Export results first if you need them.')) return;
-    socket.emit('host:end');
+    const deckId = live.deckId;
+    socket.emit('host:end', {}, r => {
+      if (!r || !r.summary || !deckId) return;
+      const all = store.get('tickbox.results', {}); all[deckId] = r.summary; store.set('tickbox.results', all);
+    });
     closePresent();
     toast('Session ended');
   };
