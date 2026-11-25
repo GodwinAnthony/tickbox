@@ -67,17 +67,153 @@
     };
   }
 
+  function pollDeck() {
+    return {
+      id: uid(), title: 'Live poll', settings: { askNames: false, theme: 'light' }, updated: Date.now(),
+      slides: [
+        { ...newSlide('content'), question: 'Welcome!', body: 'Scan the QR code to join and vote from your phone.' },
+        { ...newSlide('wordcloud'), question: 'In one word, how are you feeling today?' },
+        { ...newSlide('mc'), question: 'Which topic should we cover first?', options: ['Topic A', 'Topic B', 'Topic C', 'Topic D'] },
+        { ...newSlide('scale'), question: 'How confident are you about…', statements: ['The basics', 'Using it on your own', 'Explaining it to someone'], minLabel: 'Not at all', maxLabel: 'Very' },
+        { ...newSlide('open'), question: 'What do you want to learn today?' },
+      ],
+    };
+  }
+
+  function feedbackDeck() {
+    return {
+      id: uid(), title: 'Session feedback', settings: { askNames: false, theme: 'white' }, updated: Date.now(),
+      slides: [
+        { ...newSlide('scale'), question: "How was today's session?", statements: ['Content was useful', 'Pace was right', 'I would recommend it'] },
+        { ...newSlide('ranking'), question: 'What should we do more of?', options: ['Hands-on activities', 'Live demos', 'Group discussion', 'Quizzes'] },
+        { ...newSlide('open'), question: 'One thing we could improve?', maxPerPerson: 2 },
+        { ...newSlide('qa'), question: 'Questions for the speaker?' },
+      ],
+    };
+  }
+
+  const blankDeck = () => ({ id: uid(), title: 'Untitled presentation', settings: { askNames: false, theme: 'light' }, updated: Date.now(), slides: [{ ...newSlide('mc'), question: '' }] });
+
+  const TEMPLATES = [
+    { name: 'Quiz competition', desc: 'Lobby, 4 speed questions with leaderboards, and a final winner', make: quizDeck, show: 1 },
+    { name: 'Live poll & word cloud', desc: 'Icebreaker word cloud, a poll, a rating and an open question', make: pollDeck, show: 1 },
+    { name: 'Feedback & Q&A', desc: 'Rate the session, rank ideas, collect suggestions, take questions', make: feedbackDeck, show: 0 },
+  ];
+
   /* ---------------- state ---------------- */
   let decks = store.get(LS_DECKS, {});
-  let deck = decks[store.get(LS_CUR, '')] || Object.values(decks).sort((a, b) => b.updated - a.updated)[0];
-  if (!deck) { deck = quizDeck(); decks[deck.id] = deck; }
+  const hashId = (location.hash.match(/^#d=([\w-]+)/) || [])[1];
+  let deck = hashId && decks[hashId] ? decks[hashId] : null;
   let sel = 0;
   let saveT;
   function save() {
+    if (!deck) return;
     clearTimeout(saveT);
-    saveT = setTimeout(() => { deck.updated = Date.now(); decks[deck.id] = deck; store.set(LS_DECKS, decks); store.set(LS_CUR, deck.id); }, 250);
+    const d = deck;
+    saveT = setTimeout(() => { d.updated = Date.now(); decks[d.id] = d; store.set(LS_DECKS, decks); store.set(LS_CUR, d.id); }, 250);
   }
-  save();
+  function flushSave() { if (deck) { deck.updated = Date.now(); decks[deck.id] = deck; } store.set(LS_DECKS, decks); }
+
+  /* ---------------- home: create / templates / your presentations ---------------- */
+  const ago = ts => {
+    const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return 'just now';
+    const m = Math.round(s / 60); if (m < 60) return m + ' min ago';
+    const h = Math.round(m / 60); if (h < 24) return h + ' h ago';
+    const d = Math.round(h / 24); return d === 1 ? 'yesterday' : d < 30 ? d + ' days ago' : new Date(ts).toLocaleDateString();
+  };
+  const miniThumb = (d, i) => {
+    const s = d.slides[i] || d.slides[0];
+    return `<div class="thumb-frame theme-${themeOf(d)}" data-deck-thumb><div class="stage"></div></div>`;
+  };
+  function paintThumbs(root, items) {
+    root.querySelectorAll('[data-deck-thumb]').forEach((fr, k) => {
+      const { d, i } = items[k];
+      const s = d.slides[i] || d.slides[0];
+      if (!s) return;
+      fr.style.setProperty('--s', (fr.clientWidth || 240) / 960);
+      const st = fr.querySelector('.stage');
+      render(st, s, demoData(s), { noAnim: true, joinUrl: location.host + '/join', qrSrc: qrUrl(), code: '123 456' });
+    });
+  }
+
+  function showHome() {
+    flushSave();
+    deck = null;
+    history.replaceState(null, '', location.pathname);
+    $('#editor').classList.add('hidden');
+    $('#home').classList.remove('hidden');
+    document.title = 'TickBox — Presentations';
+    const tpls = TEMPLATES.map(t => ({ t, d: t.make() }));
+    $('#tplGrid').innerHTML = tpls.map(({ t, d }, k) => `
+      <button class="tpl-card" data-tpl="${k}">
+        ${miniThumb(d, t.show)}
+        <span class="tpl-meta"><b>${esc(t.name)}</b><small>${esc(t.desc)}</small><span class="tpl-count">${d.slides.length} slides</span></span>
+      </button>`).join('');
+    paintThumbs($('#tplGrid'), tpls.map(({ t, d }) => ({ d, i: t.show })));
+    $('#tplGrid').querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => openDeck(TEMPLATES[+b.dataset.tpl].make()));
+
+    const list = Object.values(decks).sort((a, b) => b.updated - a.updated);
+    $('#deckGrid').innerHTML = list.length ? list.map(d => `
+      <div class="deck-card" data-id="${d.id}" tabindex="0">
+        ${miniThumb(d, 0)}
+        <div class="dc-meta"><b>${esc(d.title || 'Untitled')}</b><small>${d.slides.length} slide${d.slides.length === 1 ? '' : 's'} · edited ${ago(d.updated)}</small></div>
+        <div class="dc-actions">
+          <button class="ibtn" data-act="dup" title="Duplicate">${icon('copy')}</button>
+          <button class="ibtn" data-act="export" title="Download .json">${icon('download')}</button>
+          <button class="ibtn danger" data-act="del" title="Delete">${icon('trash')}</button>
+        </div>
+      </div>`).join('') : `<div class="deck-empty">${icon('folder', 'big')}<br>No presentations yet — start from scratch or pick a template above.</div>`;
+    paintThumbs($('#deckGrid'), list.map(d => ({ d, i: 0 })));
+    $('#deckGrid').querySelectorAll('.deck-card').forEach(card => {
+      const d = decks[card.dataset.id];
+      card.onclick = e => {
+        const act = e.target.closest('[data-act]');
+        if (!act) return openDeck(d);
+        e.stopPropagation();
+        if (act.dataset.act === 'dup') {
+          const c = JSON.parse(JSON.stringify(d)); c.id = uid(); c.title = d.title + ' (copy)'; c.updated = Date.now();
+          c.slides.forEach(s => { s.id = uid(); });
+          decks[c.id] = c; flushSave(); showHome(); toast('Duplicated');
+        } else if (act.dataset.act === 'export') exportDeck(d);
+        else if (act.dataset.act === 'del') {
+          if (!confirm('Delete "' + (d.title || 'Untitled') + '"? This cannot be undone.')) return;
+          delete decks[d.id]; flushSave(); showHome();
+        }
+      };
+      card.onkeydown = e => { if (e.key === 'Enter') openDeck(d); };
+    });
+  }
+
+  function openDeck(d, after) {
+    deck = d; sel = 0; panelTab = 'edit';
+    decks[d.id] = d; flushSave(); store.set(LS_CUR, d.id);
+    history.replaceState(null, '', location.pathname + '#d=' + d.id);
+    $('#home').classList.add('hidden');
+    $('#editor').classList.remove('hidden');
+    document.title = 'TickBox — ' + (d.title || 'Presentation');
+    renderAll();
+    if (after) after();
+  }
+
+  function exportDeck(d) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' }));
+    a.download = (d.title || 'tickbox').replace(/[^\w-]+/g, '_') + '.json'; a.click();
+  }
+
+  function importFile(f) {
+    f.text().then(t => {
+      try {
+        const d = JSON.parse(t);
+        if (!Array.isArray(d.slides)) throw new Error();
+        d.id = uid(); d.updated = Date.now(); d.settings = d.settings || { askNames: false };
+        d.slides = d.slides.filter(s => TYPE_META[s.type]).map(s => ({ ...newSlide(s.type), ...s, id: uid() }));
+        if (!d.slides.length) throw new Error();
+        openDeck(d); toast('Imported ✓');
+      } catch (_) { toast('That file is not a TickBox presentation'); }
+    });
+  }
 
   /* ---------------- editor rendering ---------------- */
   const THEMES = { light: 'Light', white: 'White', dark: 'Dark', midnight: 'Midnight' };
@@ -88,6 +224,7 @@
 
   function renderAll() {
     $('#deckTitle').value = deck.title;
+    document.title = 'TickBox — ' + (deck.title || 'Presentation');
     setTheme($('#canvas'), themeOf(deck));
     $('#stripHost').textContent = location.host + '/join';
     renderList(); renderPanel(); renderPreview();
@@ -157,7 +294,7 @@
   $('#addSlide').onclick = () => openTypePicker();
 
   function renderPreview() {
-    const s = deck.slides[sel];
+    const s = deck && deck.slides[sel];
     if (!s) return;
     render($('#previewStage'), s, demoData(s), { noAnim: true, host: false, joinUrl: location.host + '/join', qrSrc: qrUrl(), code: '123 456' });
     $('#canvas').querySelector('.join-strip').classList.toggle('hidden', s.type === 'lobby');
@@ -232,7 +369,7 @@
         h += `<div class="field"><label>Body text</label><textarea class="input" id="pBody" maxlength="800">${esc(s.body || '')}</textarea></div>`;
         break;
       case 'leaderboard':
-        h += `<p class="hint">Podium for the top 3 and places 4–10. Each quiz question also shows a leaderboard after its answer.</p>`;
+        h += `<p class="hint">Top 10 with animated bars, then a crown and confetti for the winner. Each quiz question also shows its own leaderboard after the answer.</p>`;
         break;
       case 'lobby':
         h += `<p class="hint">Shows the QR code and join code while players' names pop in. Put it first.</p>`;
@@ -373,7 +510,15 @@ Jupiter"></textarea>
     });
   }
 
-  $('#btnDecks').onclick = () => {
+  $('#btnDecks').onclick = () => showHome();
+  $('#btnHome').onclick = () => showHome();
+  $('#hBlank').onclick = () => openDeck(blankDeck(), () => setTimeout(() => { const q = $('#pQ'); if (q) q.focus(); }, 60));
+  $('#hPaste').onclick = () => {
+    const d = { id: uid(), title: 'My quiz', settings: { askNames: true, theme: 'light' }, updated: Date.now(), slides: [newSlide('lobby')] };
+    openDeck(d, () => openBulk());
+  };
+  $('#hImportFile').onchange = e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; };
+  const oldDecksModal = () => {
     const list = Object.values(decks).sort((a, b) => b.updated - a.updated);
     const m = modal(`<h3>My presentations</h3>
       <div class="deck-list">${list.map(d => `<div class="deck-item" data-id="${d.id}"><div class="meta"><b>${esc(d.title)}</b><small>${d.slides.length} slides · edited ${new Date(d.updated).toLocaleString()}</small></div>${d.id === deck.id ? '<span class="progress-mini">Open</span>' : ''}<button class="ibtn danger" data-del="${d.id}" title="Delete">${icon('trash')}</button></div>`).join('')}</div>
@@ -529,8 +674,11 @@ Jupiter"></textarea>
     if (!snap) return;
     const slide = snap.deck.slides[snap.index];
     $('#joinbar').classList.toggle('hidden', slide.type === 'lobby');
+    const quizzes = snap.deck.slides.filter(s => s.type === 'quiz');
     render($('#presentStage'), slide, results, {
       host: true,
+      quizNo: quizzes.findIndex(s => s.id === slide.id) + 1,
+      quizTotal: quizzes.length,
       code: prettyCode(live.code),
       qrSrc: $('#qrSmall').src,
       hideResults: snap.hideResults,
@@ -678,7 +826,7 @@ Jupiter"></textarea>
     clearTimeout(rt);
     rt = setTimeout(() => {
       ['#presentStage', '#previewStage'].forEach(id => { const el = $(id); if (el._tb) el._tb.sig = null; });
-      deck.slides.forEach((_, i) => renderThumb(i));
+      if (deck) deck.slides.forEach((_, i) => renderThumb(i));
       if (pvIndex >= 0) drawPv();
       if (snap) { $('#presentStage')._tb = null; drawStage(); }
       $('#previewStage')._tb = null; renderPreview();
@@ -686,5 +834,6 @@ Jupiter"></textarea>
   });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { $('#previewStage')._tb = null; renderPreview(); if (snap) { $('#presentStage')._tb = null; drawStage(); } });
 
-  renderAll();
+  void oldDecksModal;
+  if (deck) openDeck(deck); else showHome();
 })();

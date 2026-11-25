@@ -25,6 +25,8 @@
   let screenKey = '';
   let draft = {};        // in-progress choices for current slide
   let quizRaf;
+  let myAv = 0;
+  const AVS = window.TBViz.AVATARS;
 
   /* ---------------- entry screens ---------------- */
   function codeScreen(err) {
@@ -104,7 +106,8 @@
       answers = r.answers || {}; qaVotes = r.qaVotes || {};
       state = r.state; results = r.results;
       const who = $('#who');
-      who.innerHTML = icon('user') + '<span>' + esc(r.name) + '</span>'; who.classList.remove('hidden');
+      myAv = r.av || 0;
+      who.innerHTML = `<span class="who-av">${AVS[myAv % AVS.length]}</span><span class="who-name">${esc(r.name)}</span>`; who.classList.remove('hidden');
       $('#reactBar').classList.remove('hidden');
       draw(true);
     });
@@ -179,8 +182,8 @@
   };
 
   V.lobby = () => {
-    main.innerHTML = `<div class="waiting"><div>${badge('party', 'mint')}<h2>You're in!</h2>
-      <div class="lobby-me">${esc($('#who').textContent || '')}</div>
+    main.innerHTML = `<div class="waiting"><div><div class="me-av">${AVS[myAv % AVS.length]}</div><h2>You're in!</h2>
+      <div class="lobby-me">${esc(($('#who .who-name') || {}).textContent || '')}</div>
       <p>Look for your name on the big screen.<br>The quiz starts soon — answer fast to score more!</p></div></div>`;
   };
 

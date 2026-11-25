@@ -58,7 +58,7 @@
     mc: { name: 'Multiple choice', desc: 'Vote on options, live bar chart' },
     quiz: { name: 'Quiz', desc: 'Timed question, faster = more points' },
     lobby: { name: 'Lobby', desc: 'Waiting room, names pop up' },
-    leaderboard: { name: 'Leaderboard', desc: 'Podium and top 10 scores' },
+    leaderboard: { name: 'Leaderboard', desc: 'Final top 10 with winner celebration' },
     wordcloud: { name: 'Word cloud', desc: 'Words grow as more people say them' },
     open: { name: 'Open ended', desc: 'Free-text answers on a live wall' },
     scale: { name: 'Scales', desc: 'Rate statements on a scale' },
@@ -169,10 +169,21 @@
     const phase = data.board ? 'board' : data.revealed ? 'reveal' : !data.started ? 'wait' : data.readyIn > 0 ? 'ready' : 'run';
     if (st.phase !== phase) {
       if (st.raf) cancelAnimationFrame(st.raf);
-      st.phase = phase; st.cols = null; st.list = null; st.rows = null;
+      st.phase = phase; st.cols = null; st.list = null; st.rows = null; st.boardSig = null;
+      (st.timers || []).forEach(clearTimeout); st.timers = [];
       viz.querySelectorAll(':scope > :not(.viz-hidden-note)').forEach(n => n.remove());
+      const slideEl = viz.closest('.slide');
+      if (slideEl) {
+        slideEl.classList.toggle('mode-board', phase === 'board');
+        slideEl.classList.toggle('mode-intro', phase === 'wait' && !!opts.host);
+      }
       if (phase === 'reveal' || phase === 'board') {
         // filled below
+      } else if (phase === 'wait' && opts.host) {
+        viz.insertAdjacentHTML('beforeend', `<div class="q-intro">
+          <div class="qi-num">Question <b>${opts.quizNo || 1}</b> of ${opts.quizTotal || 1}</div>
+          <div class="qi-players"><b class="qi-count">0</b> <span class="qi-lbl">players ready</span></div>
+          <div class="qi-hint">${icon('clock')} Answer quickly to get more points</div></div>`);
       } else if (phase === 'ready') {
         const r = document.createElement('div');
         r.className = 'quiz-ready';
@@ -210,13 +221,12 @@
             if (left > 0) st.raf = requestAnimationFrame(loop);
           };
           loop();
-        } else if (opts.host) {
-          const w = document.createElement('div');
-          w.className = 'quiz-hint';
-          w.textContent = 'Press Start when everyone is ready';
-          viz.appendChild(w);
         }
       }
+    }
+    if (phase === 'wait' && opts.host) {
+      const c = viz.querySelector('.qi-count');
+      if (c) { tween(c, data.players || 0); viz.querySelector('.qi-lbl').textContent = (data.players === 1 ? 'player' : 'players') + ' ready'; }
     }
     if (phase === 'run') {
       const a = viz.querySelector('.quiz-answers');
@@ -225,12 +235,12 @@
     }
     if (phase === 'board') {
       if (!viz.querySelector('.board-title')) {
-        const t = document.createElement('div'); t.className = 'board-title'; t.textContent = 'Leaderboard';
+        const t = document.createElement('h2'); t.className = 'board-title'; t.textContent = 'Quiz leaderboard';
         viz.appendChild(t);
         st.boardBox = document.createElement('div'); st.boardBox.className = 'board-box';
         viz.appendChild(st.boardBox);
       }
-      boardList(st.boardBox, st, (data.board || []).slice(0, 8), { gains: true, slots: 8 });
+      animatedBoard(st.boardBox, st, (data.board || []).slice(0, 8), { slots: 8, animate: !opts.noAnim });
     }
     if (phase === 'reveal') {
       columns(viz, st, slide.options, data.counts, data.total, QUIZ_COLORS, (c, i) => {
@@ -414,6 +424,99 @@
     });
   };
 
+  /* ---- animated leaderboard (old order -> points grow -> overtakes) ---- */
+  const AVATARS = ['🦊', '🐼', '🐯', '🦁', '🐸', '🐵', '🐧', '🐨', '🐙', '🦄', '🐝', '🐢', '🐳', '🦉', '🐰', '🐻', '🐶', '🐱', '🦖', '🐞', '🦋', '🐬', '🦜', '🐹'];
+  const PCOL = ['#3D7A55', '#78C08A', '#C44D55', '#3F3D4A', '#E2875F', '#5B3DF5', '#2E86D6', '#E3A033', '#8C52FF', '#179C92', '#D3568B', '#6E8B2F'];
+
+  function animatedBoard(box, st, rows, o) {
+    o = o || {};
+    const sig = JSON.stringify(rows.map(r => [r.id, r.score, r.gain, r.name]));
+    if (st.boardSig === sig && box.childElementCount) return;
+    st.boardSig = sig;
+    (st.timers || []).forEach(clearTimeout); st.timers = [];
+    box.innerHTML = '';
+    if (!rows.length) return;
+    const slots = Math.max(rows.length, o.slots || rows.length);
+    const H = box.clientHeight - 4;
+    const gap = Math.max(5, H * 0.022);
+    const rowH = Math.max(26, Math.min(o.maxH || 66, (H - gap * (slots - 1)) / slots));
+    const maxScore = Math.max(1, ...rows.map(r => r.score));
+    const MAXW = 64;                                    // % of the track the leader's bar fills
+    const pct = v => Math.max(2.5, v / maxScore * MAXW);
+    const anim = o.animate !== false && rows.some(r => r.gain > 0);
+    const prevOrder = rows.map((r, i) => ({ r, i, prev: r.score - (r.gain || 0) })).sort((a, b) => b.prev - a.prev || a.i - b.i);
+    const prevPos = new Map(prevOrder.map((x, k) => [x.r.id, k]));
+    const T = (ms, fn) => st.timers.push(setTimeout(fn, ms));
+    const els = rows.map((r, i) => {
+      const prev = Math.max(0, r.score - (r.gain || 0));
+      const el = document.createElement('div');
+      el.className = 'lbrow';
+      el.style.height = rowH + 'px';
+      el.style.fontSize = Math.max(11, Math.min(26, rowH * 0.36)) + 'px';
+      el.style.setProperty('--pc', PCOL[hash(r.id) % PCOL.length]);
+      el.innerHTML = `<div class="lb-score"><span class="num"></span> p</div>
+        <div class="lb-track"><div class="lb-fill"><div class="lb-solid"></div>${r.gain ? `<span class="lb-gain">+${r.gain.toLocaleString()}</span>` : ''}</div>
+        <span class="lb-av"><span>${AVATARS[(r.av || 0) % AVATARS.length]}</span></span><span class="lb-name"></span><span class="lb-mv"></span></div>`;
+      el.querySelector('.lb-name').textContent = r.name;
+      const start = anim ? prev : r.score;
+      const num = el.querySelector('.num');
+      num._v = start; num.textContent = Math.round(start).toLocaleString();
+      const fill = el.querySelector('.lb-fill');
+      fill.style.width = pct(start) + '%';
+      el.style.top = ((anim ? prevPos.get(r.id) : i) * (rowH + gap)) + 'px';
+      if (o.animate !== false) el.classList.add('enter');
+      box.appendChild(el);
+      return { el, r, i, prev, fill, num };
+    });
+    const finalize = () => {
+      els.forEach(x => {
+        x.el.style.top = (x.i * (rowH + gap)) + 'px';
+        x.el.classList.remove('enter');
+        x.el.classList.toggle('first', x.i === 0);
+        x.el.querySelector('.lb-mv').innerHTML = moveBadge(x.r.move);
+      });
+      if (o.onDone) T(1000, o.onDone);
+    };
+    if (o.animate === false) { finalize(); return; }
+    els.forEach(x => T(80 + (anim ? prevPos.get(x.r.id) : x.i) * 90, () => x.el.classList.remove('enter')));
+    if (!anim) { T(200 + rows.length * 90, finalize); return; }
+    const base = 300 + rows.length * 90;
+    // 1) the points won this round grow out of the tip of each bar
+    T(base + 300, () => els.forEach(x => {
+      if (!x.r.gain) return;
+      x.el.classList.add('growing');
+      x.el.querySelector('.lb-solid').style.width = (x.prev / x.r.score * 100) + '%';
+      x.fill.style.width = pct(x.r.score) + '%';
+    }));
+    // 2) the gain is banked: score counts up, bar turns solid
+    T(base + 1500, () => els.forEach(x => {
+      if (!x.r.gain) return;
+      x.el.classList.add('banked');
+      tween(x.num, x.r.score);
+      x.el.querySelector('.lb-solid').style.width = '100%';
+    }));
+    // 3) overtakes: rows slide to their new places
+    T(base + 2500, finalize);
+  }
+
+  function confetti(container) {
+    const wrap = document.createElement('div');
+    wrap.className = 'confetti';
+    for (let i = 0; i < 110; i++) {
+      const p = document.createElement('i');
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.background = COLORS[i % COLORS.length];
+      p.style.animationDelay = (Math.random() * 0.9) + 's';
+      p.style.animationDuration = (2.4 + Math.random() * 1.8) + 's';
+      p.style.setProperty('--dx', (Math.random() * 200 - 100) + 'px');
+      p.style.setProperty('--rot', (Math.random() * 900 - 450) + 'deg');
+      if (i % 3 === 0) p.style.borderRadius = '50%';
+      wrap.appendChild(p);
+    }
+    container.appendChild(wrap);
+    setTimeout(() => wrap.remove(), 6000);
+  }
+
   function moveBadge(m) {
     if (m == null || m === 0) return '';
     return m > 0 ? `<span class="mv up">▲${m}</span>` : `<span class="mv down">▼${-m}</span>`;
@@ -442,8 +545,17 @@
   }
 
   R.leaderboard = function (viz, slide, data, st, opts) {
-    const top = (data && data.top) || [];
+    const top = ((data && data.top) || []).slice(0, 10);
     emptyHint(viz, !top.length, `<div>${icon('leaderboard', 'big')}<br>No quiz scores yet — add Quiz slides before this one</div>`);
+    if (!st.box) { st.box = document.createElement('div'); st.box.className = 'board-box final'; viz.appendChild(st.box); }
+    animatedBoard(st.box, st, top, {
+      slots: 10, animate: !opts.noAnim,
+      onDone: opts.noAnim ? null : () => { const w = st.box.querySelector('.lbrow.first'); if (w) w.classList.add('winner'); confetti(viz); },
+    });
+  };
+
+  R.leaderboardPodium = function (viz, slide, data, st, opts) {
+    const top = (data && data.top) || [];
     if (!st.pod) {
       viz.insertAdjacentHTML('beforeend', `<div class="lb-wrap"><div class="podium"></div><div class="lb-rest"></div></div>`);
       st.pod = viz.querySelector('.podium'); st.rest = viz.querySelector('.lb-rest');
@@ -484,7 +596,7 @@
       const el = document.createElement('span');
       el.className = 'chip';
       el.style.setProperty('--c', PASTELS[hash(n.id) % PASTELS.length]);
-      el.textContent = n.name;
+      el.innerHTML = `<span class="chip-av">${AVATARS[(n.av || 0) % AVATARS.length]}</span>${esc(n.name)}`;
       st.chips.prepend(el);
       st.chipEls.set(n.id, el);
     }
@@ -524,8 +636,8 @@
       case 'open': return { total: 4, items: ['Love the live format!', 'Can we get the slides afterwards?', 'More hands-on demos please', 'Great session 🎉'].map((t, i) => ({ id: 'd' + i, text: t, t: i })) };
       case 'scale': return { total: 30, stats: slide.statements.map((_, i) => { const d = Array(slide.max).fill(0).map((_, k) => 2 + ((k * 7 + i * 3) % 9)); let s = 0, n = 0; d.forEach((c, k) => { s += c * (k + 1); n += c; }); return { avg: s / n, dist: d }; }) };
       case 'ranking': return { total: 20, order: slide.options.map((_, i) => ({ i, p: 100 - i * 13 })) };
-      case 'leaderboard': return { total: 7, top: [['Asha', 4820, 1], ['Rohan', 4410, -1], ['Meera', 3970, 2], ['Karthik', 3550, 0], ['Divya', 2980, -2], ['Arjun', 2410, 1], ['Sneha', 1900, 0]].map(([n, s, m]) => ({ id: n, name: n, score: s, move: m })) };
-      case 'lobby': return { total: 6, names: ['Asha', 'Rohan', 'Meera', 'Karthik', 'Divya', 'Arjun'].map((n, i) => ({ id: 'n' + i, name: n, t: i })) };
+      case 'leaderboard': return { total: 7, top: [['Asha', 4820, 1], ['Rohan', 4410, -1], ['Meera', 3970, 2], ['Karthik', 3550, 0], ['Divya', 2980, -2], ['Arjun', 2410, 1], ['Sneha', 1900, 0]].map(([n, s, m], i) => ({ id: n, name: n, score: s, move: m, av: i * 5 })) };
+      case 'lobby': return { total: 6, names: ['Asha', 'Rohan', 'Meera', 'Karthik', 'Divya', 'Arjun'].map((n, i) => ({ id: 'n' + i, name: n, t: i, av: i * 3 })) };
       case 'qa': return { total: 3, items: [{ id: 'q1', text: 'How will this scale to more users?', votes: 18 }, { id: 'q2', text: 'Is the recording available later?', votes: 11 }, { id: 'q3', text: 'What tools did you use?', votes: 6 }] };
       default: return null;
     }
@@ -536,5 +648,5 @@
   });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => hydrateIcons()); else hydrateIcons();
 
-  window.TBViz = { hydrateIcons, render, demoData, COLORS, QUIZ_COLORS, SHAPES, TYPE_META, esc, tween, icon };
+  window.TBViz = { AVATARS, hydrateIcons, render, demoData, COLORS, QUIZ_COLORS, SHAPES, TYPE_META, esc, tween, icon };
 })();
