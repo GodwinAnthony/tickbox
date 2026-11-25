@@ -904,3 +904,77 @@ a.btn { text-decoration: none; }
 @media (max-width: 900px) {
   .create-row, .tpl-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   HOME v2 — sidebar layout, create box, recent results
+   ============================================================ */
+.home { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; background: #F1EFEA; }
+.home-side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 18px; padding: 20px 16px; background: #fff; border-right: 1px solid var(--line); }
+.home-side .logo { padding: 4px 6px; }
+.home-side .logo-mark { transform: none; box-shadow: none; }
+.new-wrap { position: relative; }
+.new-wrap .new-slide { width: 100%; margin: 0; }
+.new-menu { position: absolute; top: calc(100% + 8px); left: 0; width: 290px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; z-index: 20; animation: fade .12s; }
+.new-menu button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 9px; border: 0; background: transparent; border-radius: 10px; text-align: left; cursor: pointer; font: inherit; color: var(--ink); }
+.new-menu button:hover { background: var(--paper); }
+.new-menu b { display: block; font-size: 14px; font-weight: 600; }
+.new-menu small { display: block; font-size: 12px; color: var(--muted); }
+.side-nav { display: flex; flex-direction: column; gap: 2px; }
+.sn { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 0; background: transparent; border-radius: 10px; font: inherit; font-size: 14.5px; font-weight: 500; color: var(--ink-2); cursor: pointer; text-decoration: none; text-align: left; }
+.sn .ic { width: 18px; height: 18px; color: var(--muted); }
+.sn:hover { background: var(--paper); }
+.sn.on { background: var(--violet-soft); color: var(--violet-d); font-weight: 600; }
+.sn.on .ic { color: var(--violet); }
+.side-foot { margin-top: auto; }
+.side-foot p { font-size: 12px; color: var(--muted); padding: 6px 12px 0; margin: 0; line-height: 1.4; }
+.home-main { max-width: 1180px; width: 100%; margin: 0 auto; padding: 36px 36px 60px; }
+.home-h1 { font-size: clamp(26px, 3vw, 34px); font-weight: 800; margin-bottom: 18px; }
+
+.ask-wrap { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
+.ask-title { font-family: var(--font); font-size: 18px; font-weight: 600; margin-bottom: 12px; text-align: center; }
+.ask-box { position: relative; max-width: 720px; margin: 0 auto; }
+.ask-box textarea { width: 100%; resize: vertical; min-height: 96px; border: 1.5px solid var(--line); border-radius: 16px; padding: 14px 62px 14px 16px; font: inherit; font-size: 15px; line-height: 1.5; outline: none; background: #fff; transition: border-color .15s, box-shadow .15s; }
+.ask-box textarea:focus { border-color: var(--violet); box-shadow: 0 0 0 4px var(--violet-soft); }
+.ask-go { position: absolute; right: 12px; bottom: 14px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--violet); color: #fff; display: grid; place-items: center; cursor: pointer; transition: opacity .15s, transform .1s; }
+.ask-go:disabled { background: var(--line); color: #fff; cursor: default; }
+.ask-go:not(:disabled):active { transform: scale(.94); }
+.ask-go .ic { width: 20px; height: 20px; stroke-width: 2.4; }
+.st-hint { max-width: 720px; margin: 8px auto 0; text-align: center; font-size: 12.5px; color: var(--muted); }
+.quick-chips { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; }
+.quick-chips > span { font-size: 13px; color: var(--muted); margin-right: 2px; }
+.qchip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.qchip .ic { width: 16px; height: 16px; color: var(--violet); }
+.qchip:hover { border-color: var(--violet); color: var(--ink); }
+
+.home-sec { display: flex; align-items: center; justify-content: space-between; margin: 32px 0 14px; }
+.res-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; cursor: pointer; transition: border-color .15s; }
+.res-card:hover { border-color: var(--violet); }
+.rc-head { display: flex; align-items: center; gap: 12px; }
+.rc-head > div { flex: 1; }
+.rc-head b { display: block; font-size: 15.5px; }
+.rc-head small { color: var(--muted); font-size: 12.5px; }
+.rc-head .t-ic { width: 36px; height: 36px; border-radius: 10px; }
+.rc-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.rc-stats > div { padding: 12px 16px; border-right: 1px solid var(--line); }
+.rc-stats > div:last-child { border-right: 0; }
+.rc-stats small { display: block; color: var(--muted); font-size: 12px; }
+.rc-stats b { display: block; font-family: var(--font-display); font-size: 24px; font-weight: 800; margin: 2px 0; }
+.rc-win span { display: flex; gap: 4px; margin: 4px 0; }
+.rc-win i { position: relative; font-style: normal; width: 32px; height: 32px; border-radius: 50%; background: var(--paper); display: grid; place-items: center; font-size: 18px; }
+.rc-win em { position: absolute; right: -3px; bottom: -3px; font-style: normal; font-size: 10px; font-weight: 800; background: var(--ink); color: #fff; width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; }
+.res-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--mint); margin-right: 5px; vertical-align: 1px; }
+.deck-grid.four { grid-template-columns: repeat(4, 1fr); }
+
+/* blank presentation starter */
+.starter { width: 100%; max-width: 760px; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 36px 32px 30px; text-align: center; box-shadow: 0 24px 48px -32px rgba(23,19,43,.3); }
+.starter h2 { font-family: var(--font); font-weight: 600; font-size: 24px; margin-bottom: 18px; }
+.starter .ask-box { text-align: left; }
+.st-actions { display: flex; justify-content: center; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+.st-actions .btn { cursor: pointer; }
+
+@media (max-width: 1100px) { .deck-grid.four { grid-template-columns: repeat(2, 1fr); } .rc-stats { grid-template-columns: repeat(2, 1fr); } .rc-stats > div { border-bottom: 1px solid var(--line); } }
+@media (max-width: 800px) {
+  .home { grid-template-columns: 1fr; }
+  .home-side { position: static; height: auto; }
+  .home-main { padding: 24px 16px 40px; }
+}
