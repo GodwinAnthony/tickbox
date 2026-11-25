@@ -92,7 +92,7 @@ function sanitizeDeck(d) {
     slides: [],
   };
   const seen = new Set();
-  (Array.isArray(d.slides) ? d.slides.slice(0, 60) : []).forEach(s => {
+  (Array.isArray(d.slides) ? d.slides.slice(0, 150) : []).forEach(s => {
     if (!s || !TYPES.includes(s.type)) return;
     let id = str(s.id, 64) || crypto.randomUUID();
     if (seen.has(id)) id = crypto.randomUUID();
