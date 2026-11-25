@@ -137,7 +137,7 @@
   function keyFor() {
     if (!state) return '';
     const s = state.slide, q = state.quiz || {};
-    return [s.id, state.open, JSON.stringify(answers[s.id] || null), q.started, q.readyIn > 0, q.revealed, !!quizRes[s.id], state.showOnPhones, state.ended].join('|');
+    return [s.id, s.question ? 1 : 0, s.options ? 1 : 0, state.open, JSON.stringify(answers[s.id] || null), q.started, q.readyIn > 0, q.revealed, !!quizRes[s.id], state.showOnPhones, state.ended].join('|');
   }
 
   function draw(force) {
@@ -302,7 +302,7 @@
       return;
     }
     if (!q.started) {
-      main.innerHTML = `<div class="waiting"><div>${badge('quiz', 'amber')}<h2>${richQ(s.question)}</h2><p>${s.time} seconds · the faster you answer, the more points</p></div></div>`;
+      main.innerHTML = `<div class="waiting"><div>${badge('quiz', 'amber')}<h2>${state.quizNo ? `Question ${state.quizNo} of ${state.quizTotal}` : 'Get ready!'}</h2><p>Look at the screen — the question is coming up.<br>${s.time} seconds · the faster you answer, the more points</p></div></div>`;
       return;
     }
     if (q.readyIn > 0) {
@@ -315,7 +315,7 @@
           mode = m;
           main.innerHTML = m === 'banner'
             ? `<div class="waiting"><div>${badge('clock')}<h2>Answer quickly to get more points!</h2><p>The question is coming up…</p></div></div>`
-            : `<div class="waiting"><div><div class="count-big" id="cd">${Math.ceil(left / 1000)}</div><h2>${richQ(s.question)}</h2><p>Read the question — answers appear in a moment</p></div></div>`;
+            : `<div class="waiting"><div><div class="count-big" id="cd">${Math.ceil(left / 1000)}</div><h2>${s.question ? richQ(s.question) : 'Get ready…'}</h2><p>Read the question — answers appear in a moment</p></div></div>`;
         }
         const el = $('#cd');
         if (!el && mode === 'read') return;
@@ -332,6 +332,10 @@
     }
     if (mine !== undefined) {
       main.innerHTML = `<div class="waiting"><div>${badge('lock')}<h2>Answer locked in</h2><p>You picked <b>${esc(s.options[mine])}</b>.<br>Waiting for the timer…</p></div></div>`;
+      return;
+    }
+    if (!s.options) { // answers not received yet (they arrive the moment the timer starts)
+      main.innerHTML = `<div class="waiting"><div>${badge('clock')}<h2>${s.question ? richQ(s.question) : 'Get ready…'}</h2><p>Here come the answers…</p></div></div>`;
       return;
     }
     const endsAt = Date.now() + (q.remaining || 0);
