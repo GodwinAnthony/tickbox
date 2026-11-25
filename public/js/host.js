@@ -185,18 +185,54 @@
     const o = $('#cloudOut'); if (o) o.onclick = async () => {
       const wipe = confirm('Sign out?\n\nPress OK to also remove your presentations from THIS browser (they stay safe in your Google account) — good on a shared computer.\nPress Cancel to keep a copy here.');
       await c.signOut();
-      if (wipe) { decks = {}; store.set(LS_DECKS, decks); store.del('tickbox.results'); deck = null; showHome('home'); }
-      toast('Signed out');
+      if (wipe) { decks = {}; store.set(LS_DECKS, decks); store.del('tickbox.results'); store.del(LS_CUR); }
+      store.del(LS_GUEST);
+      location.href = '/host';
     };
     const ed = $('#edCloud');
     if (ed) { ed.textContent = u ? (cloudState === 'saving' ? 'Saving…' : cloudState === 'error' ? 'Offline — will retry' : 'Saved to cloud') : ''; ed.className = 'ed-cloud cs-' + cloudState; }
   }
+  /* ---------- sign-in screen shown before the presenter pages ---------- */
+  const LS_GUEST = 'tickbox.guest';
+  let gateDone = false;
+  function hideGate() {
+    if (gateDone) return; gateDone = true;
+    const g = $('#gate'); g.classList.add('leaving');
+    setTimeout(() => g.remove(), 450);
+  }
+  function showGateButtons() {
+    $('#gateLoading').classList.add('hidden'); $('#gateBody').classList.remove('hidden');
+  }
+  $('#gateGoogle').innerHTML = GOOGLE_G + '<span>Sign in with Google</span>';
+  $('#gateGoogle').onclick = async () => {
+    const c = cloud(); $('#gateErr').textContent = '';
+    if (!c || !c.available) { $('#gateErr').textContent = 'Sign-in is not available right now. Continue without signing in.'; return; }
+    $('#gateGoogle').disabled = true;
+    try { await c.signIn(); } catch (e) {
+      console.error(e);
+      $('#gateErr').textContent = 'Sign-in did not work (' + (e.code || e.message || e) + '). Try again, or continue without signing in.';
+    }
+    $('#gateGoogle').disabled = false;
+  };
+  $('#gateGuest').onclick = () => { store.set(LS_GUEST, true); hideGate(); };
+  (function startGate() {
+    // presenting right now, or chose to work without an account before → no sign-in screen
+    if (store.get(LS_GUEST, false) || store.get(LS_LIVE, null)) { hideGate(); return; }
+    const t = setTimeout(showGateButtons, 4000); // slow network: show the buttons anyway
+    const wait = () => {
+      const c = cloud();
+      if (!c || !c.available) { clearTimeout(t); showGateButtons(); return; }
+      c.resolved.then(u => { clearTimeout(t); if (u) hideGate(); else showGateButtons(); });
+    };
+    if (window.TBCloud) wait(); else window.addEventListener('tbcloud', wait, { once: true });
+  })();
+
   function initCloud() {
     const c = cloud(); if (!c) return;
     let lastUid = null;
     c.onChange(u => {
       const uid = u ? u.uid : null;
-      if (uid && uid !== lastUid) { lastUid = uid; toast('Signed in as ' + u.name); cloudMerge(); }
+      if (uid && uid !== lastUid) { lastUid = uid; if (!gateDone) hideGate(); else toast('Signed in as ' + u.name); store.del(LS_GUEST); cloudMerge(); }
       if (!uid) lastUid = null;
       drawCloud();
     });

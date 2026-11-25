@@ -18,10 +18,13 @@ const FIREBASE_CONFIG = {
 const V = '10.12.2';
 const listeners = new Set();
 let auth = null, db = null, fs = null, au = null, user = null;
+let markResolved;
+const resolved = new Promise(r => { markResolved = r; }); // first sign-in check finished
 
 const api = {
   available: !!FIREBASE_CONFIG,
   get user() { return user; },
+  resolved,
   onChange(fn) { listeners.add(fn); fn(user); return () => listeners.delete(fn); },
   async signIn() {
     await ready;
@@ -83,9 +86,11 @@ const ready = (async () => {
   await a.setPersistence(auth, a.browserLocalPersistence);
   a.onAuthStateChanged(auth, u => {
     user = u ? { uid: u.uid, name: u.displayName || u.email || 'You', email: u.email || '', photo: u.photoURL || '' } : null;
+    markResolved(user);
     listeners.forEach(fn => { try { fn(user); } catch (e) { console.error(e); } });
   });
-})().catch(e => { console.error('TickBox cloud failed to load', e); api.available = false; listeners.forEach(fn => fn(null)); });
+})().catch(e => { console.error('TickBox cloud failed to load', e); api.available = false; markResolved(null); listeners.forEach(fn => fn(null)); });
+if (!FIREBASE_CONFIG) markResolved(null);
 
 window.TBCloud = api;
 window.dispatchEvent(new Event('tbcloud'));
