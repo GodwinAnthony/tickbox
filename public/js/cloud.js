@@ -4,7 +4,16 @@
    users/{uid}/decks/{deckId}, so they show up on any laptop.
    The browser copy (localStorage) stays as an offline cache.
    ============================================================ */
-const FIREBASE_CONFIG = null; // filled in once the Firebase project exists
+// Firebase web config — public by design (it only identifies the project;
+// the Firestore rules decide who can read/write: each user only their own data).
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyBjKPS7mCTkzpCjvfKgeS04Qam5e8YM2qE',
+  authDomain: 'tickbox-quiz.firebaseapp.com',
+  projectId: 'tickbox-quiz',
+  storageBucket: 'tickbox-quiz.firebasestorage.app',
+  messagingSenderId: '397966015344',
+  appId: '1:397966015344:web:4915ef341ea35695bb6db5',
+};
 
 const V = '10.12.2';
 const listeners = new Set();
