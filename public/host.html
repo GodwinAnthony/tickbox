@@ -20,6 +20,7 @@
         <button data-new="blank"><span class="t-ic" data-ic="mc"></span><span><b>Blank presentation</b><small>Start from an empty slide</small></span></button>
         <button data-new="quiz"><span class="t-ic t-quiz" data-ic="quiz"></span><span><b>Quiz competition</b><small>Speed quiz with leaderboards</small></span></button>
         <button data-new="paste"><span class="t-ic t-leaderboard" data-ic="paste"></span><span><b>Paste quiz questions</b><small>Turn a list into a quiz</small></span></button>
+        <button data-new="csv"><span class="t-ic t-mc" data-ic="sheet"></span><span><b>Import from spreadsheet</b><small>Questions + answers from a .csv</small></span></button>
         <button data-new="import"><span class="t-ic t-qa" data-ic="download"></span><span><b>Import presentation</b><small>Open a TickBox .json file</small></span></button>
       </div>
     </div>
@@ -64,6 +65,7 @@
         <div class="st-hint" id="stHint">Each question becomes a slide · answers marked with * become quiz questions</div>
         <div class="st-actions">
           <button class="btn round" id="stScratch" data-ic="pencil">Start from scratch</button>
+          <button class="btn round" id="stCsv" data-ic="sheet">Import CSV</button>
           <label class="btn round" data-ic="download">Import slides<input type="file" accept=".json,application/json" id="stImport" hidden></label>
         </div>
       </div>
