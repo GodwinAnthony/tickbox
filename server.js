@@ -47,9 +47,11 @@ app.get('/api/qr', async (req, res) => {
 });
 
 app.get('/api/room/:code', (req, res) => {
+  const ip = clientIp(req.headers, req.socket.remoteAddress);
+  if (guessBlocked(ip)) return res.status(429).json({ ok: false, error: 'Too many wrong codes. Try again in a few minutes.' });
   const room = rooms.get(String(req.params.code));
-  if (!room || room.ended) return res.status(404).json({ ok: false });
-  res.json({ ok: true, title: room.deck.title, askNames: needsNames(room) });
+  if (!room || room.ended) { guessFailed(ip); return res.status(404).json({ ok: false }); }
+  res.json({ ok: true, title: room.deck.title, askNames: needsNames(room), needPin: !!room.pin, locked: !!room.locked });
 });
 
 app.get('/api/export/:code', (req, res) => {
@@ -175,6 +177,10 @@ function createRoom(deck) {
     boards: {},           // slideId -> leaderboard snapshot taken at reveal
     lastPrevRank: new Map(),
     lastGain: new Map(),
+    locked: false,        // no new players can join
+    pin: null,            // optional 4-digit PIN for new players (QR link carries it)
+    banned: new Set(),    // pids removed by the presenter
+    quizAnswerTimes: {},
   };
   deck.slides.forEach(s => { room.slideState[s.id] = { open: true }; });
   rooms.set(room.code, room);
@@ -440,6 +446,8 @@ function hostSnapshot(room) {
     slideState: room.slideState,
     showOnPhones: room.showOnPhones,
     hideResults: room.hideResults,
+    locked: room.locked,
+    pin: room.pin,
     participants: connectedCount(room),
     responders: respondersCount(room, slide),
     results: computeResults(room, slide),
@@ -529,6 +537,132 @@ function revealQuiz(room, slideId) {
   }
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Gatecrash protection: names, code guessing, removing players        */
+/* ------------------------------------------------------------------ */
+const BAD_PARTS = ['fuck', 'fuk', 'motherf', 'bitch', 'asshole', 'bastard', 'whore', 'nigger', 'nigga', 'faggot', 'retard',
+  'madarchod', 'maderchod', 'bhenchod', 'behenchod', 'benchod', 'bhosdi', 'bhosad', 'chutiya', 'chutia', 'gaandu',
+  'thayoli', 'mayire', 'pundachi', 'thevidiya', 'porn', 'penis', 'vagina', 'boobs'];
+const BAD_WORDS = new Set(['shit', 'dick', 'cunt', 'slut', 'rape', 'sex', 'sexy', 'cock', 'ass', 'gandu', 'randi', 'lund', 'lauda',
+  'laude', 'loda', 'harami', 'kamina', 'myre', 'myr', 'myru', 'mairu', 'pooru', 'kunna', 'punda', 'bsdk', 'mkc', 'tits', 'nude']);
+const LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i' };
+function isRude(name) {
+  const base = name.toLowerCase().replace(/[013457@$!]/g, c => LEET[c]);
+  // also try with repeated letters collapsed (fuuuck) and * filled in (f*ck, sh*t)
+  return [base, base.replace(/\*/g, 'u'), base.replace(/\*/g, 'i'), base.replace(/([a-z])\1+/g, '$1')].some(low => {
+    const squashed = low.replace(/[^a-z]/g, '');
+    if (BAD_PARTS.some(w => squashed.includes(w))) return true;
+    return low.split(/[^a-z]+/).some(w => BAD_WORDS.has(w));
+  });
+}
+// returns '' for no name, null for a rejected name, otherwise the cleaned name
+function cleanName(v) {
+  const n = str(v, 60).replace(/[​-​⁠﻿‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 30);
+  if (!n) return '';
+  if (isRude(n)) return null;
+  return n;
+}
+function uniqueName(room, name, pid) {
+  const taken = new Set();
+  for (const [k, x] of room.participants) if (k !== pid) taken.add(x.name.toLowerCase());
+  if (!taken.has(name.toLowerCase())) return name;
+  for (let i = 2; ; i++) { const n = `${name.slice(0, 26)} ${i}`; if (!taken.has(n.toLowerCase())) return n; }
+}
+
+// wrong-code guesses per IP (generous, because a whole college can share one IP)
+const guesses = new Map(); // ip -> { n, since, until }
+const GUESS_LIMIT = 120, GUESS_WINDOW = 10 * 60 * 1000, GUESS_BLOCK = 5 * 60 * 1000;
+function clientIp(headers, addr) { return String((headers && headers['x-forwarded-for']) || addr || '').split(',')[0].trim(); }
+function guessBlocked(ip) { const g = guesses.get(ip); return !!(g && g.until > Date.now()); }
+function guessFailed(ip) {
+  const now = Date.now();
+  let g = guesses.get(ip);
+  if (!g || now - g.since > GUESS_WINDOW) { g = { n: 0, since: now, until: 0 }; guesses.set(ip, g); }
+  if (++g.n >= GUESS_LIMIT) { g.until = now + GUESS_BLOCK; g.n = 0; g.since = now; }
+}
+setInterval(() => { const now = Date.now(); for (const [ip, g] of guesses) if (now - g.since > GUESS_WINDOW && g.until < now) guesses.delete(ip); }, 60 * 1000);
+
+function removePlayer(room, pid) {
+  const part = room.participants.get(pid);
+  room.banned.add(pid);
+  room.participants.delete(pid);
+  for (const m of Object.values(room.responses)) m.delete(pid);
+  for (const m of Object.values(room.quizPoints)) m.delete(pid);
+  for (const m of Object.values(room.quizAnswerTimes || {})) m.delete(pid);
+  const sid = shortId(pid);
+  for (const k of Object.keys(room.boards)) room.boards[k] = room.boards[k].filter(r => r.id !== sid);
+  for (const list of Object.values(room.qa)) for (let i = list.length - 1; i >= 0; i--) { list[i].votes.delete(pid); if (list[i].pid === pid) list.splice(i, 1); }
+  if (part) for (const s of part.sockets) {
+    const sock = io.sockets.sockets.get(s);
+    if (sock) { sock.emit('aud:kicked'); sock.leave('aud:' + room.code); sock.data.code = null; }
+  }
+  broadcastState(room);
+  room.dirtyHost = true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Backup / restore — the presenter's browser keeps a copy of the room */
+/* so a server restart in the middle of a quiz loses nothing           */
+/* ------------------------------------------------------------------ */
+const mapOut = m => [...m];
+const objMaps = o => Object.fromEntries(Object.entries(o || {}).map(([k, m]) => [k, mapOut(m)]));
+function exportRoom(room) {
+  return {
+    v: 1, savedAt: Date.now(), code: room.code, hostToken: room.hostToken, deck: room.deck, index: room.index,
+    slideState: room.slideState, responses: objMaps(room.responses), quizPoints: objMaps(room.quizPoints),
+    quizAnswerTimes: objMaps(room.quizAnswerTimes),
+    qa: Object.fromEntries(Object.entries(room.qa).map(([k, l]) => [k, l.map(q => ({ ...q, votes: [...q.votes] }))])),
+    hidden: Object.fromEntries(Object.entries(room.hidden).map(([k, s]) => [k, [...s]])),
+    participants: [...room.participants].map(([pid, x]) => [pid, { name: x.name, joinedAt: x.joinedAt }]),
+    guestNo: room.guestNo, showOnPhones: room.showOnPhones, hideResults: room.hideResults, boards: room.boards,
+    lastPrevRank: mapOut(room.lastPrevRank), lastGain: mapOut(room.lastGain),
+    locked: room.locked, pin: room.pin, banned: [...room.banned], createdAt: room.createdAt,
+  };
+}
+function importRoom(d) {
+  const deck = sanitizeDeck(d.deck);
+  // keep the original slide ids so answers line up
+  deck.slides.forEach((s, i) => { if (d.deck.slides[i] && d.deck.slides[i].id) s.id = str(d.deck.slides[i].id, 64); });
+  const ids = new Set(deck.slides.map(s => s.id));
+  const maps = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => ids.has(k)).map(([k, a]) => [k, new Map(Array.isArray(a) ? a : [])]));
+  const room = {
+    code: String(d.code), hostToken: String(d.hostToken), deck,
+    index: clampInt(d.index, 0, deck.slides.length - 1, 0),
+    slideState: {}, responses: maps(d.responses), quizPoints: maps(d.quizPoints), quizAnswerTimes: maps(d.quizAnswerTimes),
+    qa: {}, hidden: {}, participants: new Map(), guestNo: clampInt(d.guestNo, 0, 1e6, 0),
+    showOnPhones: !!d.showOnPhones, hideResults: !!d.hideResults, ended: false,
+    createdAt: d.createdAt || Date.now(), lastActive: Date.now(), dirtyHost: true, dirtyAud: true, lastAudFlush: 0,
+    reactions: [], quizTimer: null, quizGoTimer: null, boards: {}, lastPrevRank: new Map(d.lastPrevRank || []), lastGain: new Map(d.lastGain || []),
+    locked: !!d.locked, pin: /^\d{4}$/.test(String(d.pin)) ? String(d.pin) : null, banned: new Set((d.banned || []).map(x => str(x, 64))),
+  };
+  deck.slides.forEach(s => {
+    const o = (d.slideState || {})[s.id] || {};
+    room.slideState[s.id] = { open: o.open !== false, startedAt: o.startedAt || undefined, endsAt: o.endsAt || undefined, revealed: !!o.revealed, showBoard: !!o.showBoard };
+    if (Array.isArray((d.qa || {})[s.id])) room.qa[s.id] = d.qa[s.id].slice(0, 500).map(q => ({ id: str(q.id, 20), text: str(q.text, 240), pid: str(q.pid, 64), votes: new Set(q.votes || []), answered: !!q.answered, t: q.t || 0 }));
+    if (Array.isArray((d.hidden || {})[s.id])) room.hidden[s.id] = new Set(d.hidden[s.id].map(x => str(x, 80)));
+    if (Array.isArray((d.boards || {})[s.id])) room.boards[s.id] = d.boards[s.id].slice(0, 20);
+  });
+  for (const [pid, x] of (d.participants || []).slice(0, 2000)) {
+    room.participants.set(str(pid, 64), { name: str(x && x.name, 30) || 'Guest', sockets: new Set(), joinedAt: (x && x.joinedAt) || Date.now(), lastReact: 0, lastQa: 0 });
+  }
+  rooms.set(room.code, room);
+  // a quiz question that was running: finish it on time
+  const slide = currentSlide(room), st = room.slideState[slide.id];
+  if (slide.type === 'quiz' && st.startedAt && !st.revealed) {
+    if (!room.quizAnswerTimes[slide.id]) room.quizAnswerTimes[slide.id] = new Map();
+    if (!room.responses[slide.id]) room.responses[slide.id] = new Map();
+    const now = Date.now();
+    if (now >= st.endsAt) setTimeout(() => revealQuiz(room, slide.id), 1500);
+    else {
+      if (now < st.startedAt - QUIZ_READ_MS) room.quizReadTimer = setTimeout(() => broadcastState(room), st.startedAt - QUIZ_READ_MS - now);
+      if (now < st.startedAt) room.quizGoTimer = setTimeout(() => broadcastState(room), st.startedAt - now);
+      room.quizTimer = setTimeout(() => revealQuiz(room, slide.id), st.endsAt - now + 300);
+    }
+  }
+  return room;
+}
+
 /* ------------------------------------------------------------------ */
 /* Sockets                                                             */
 /* ------------------------------------------------------------------ */
@@ -552,11 +686,67 @@ io.on('connection', socket => {
   socket.on('host:resume', (payload, cb) => {
     if (typeof cb !== 'function') return;
     const room = rooms.get(String(payload && payload.code));
-    if (!room || room.hostToken !== (payload && payload.hostToken) || room.ended) return cb({ ok: false });
+    if (!room) return cb({ ok: false, reason: 'missing' });
+    if (room.hostToken !== (payload && payload.hostToken) || room.ended) return cb({ ok: false });
     socket.join('host:' + room.code);
     socket.data.hostCode = room.code;
     room.lastActive = Date.now();
     cb({ ok: true, snapshot: hostSnapshot(room) });
+  });
+
+  socket.on('host:lock', p => {
+    const room = hostRoom(socket); if (!room) return;
+    room.locked = !!(p && p.locked);
+    io.to('host:' + room.code).emit('host:state', hostSnapshot(room));
+  });
+
+  socket.on('host:pin', (p, cb) => {
+    const room = hostRoom(socket); if (!room) return;
+    room.pin = p && p.on ? String(crypto.randomInt(1000, 10000)) : null;
+    io.to('host:' + room.code).emit('host:state', hostSnapshot(room));
+    if (typeof cb === 'function') cb({ pin: room.pin });
+  });
+
+  socket.on('host:players', (p, cb) => {
+    const room = hostRoom(socket); if (!room || typeof cb !== 'function') return;
+    const tot = totalScores(room);
+    cb([...room.participants].map(([pid, x]) => ({ id: shortId(pid), name: x.name, av: avatarOf(pid), online: x.sockets.size > 0, score: tot.get(pid) || 0, t: x.joinedAt }))
+      .sort((a, b) => b.t - a.t));
+  });
+
+  socket.on('host:kick', p => {
+    const room = hostRoom(socket); if (!room || !p) return;
+    const pid = [...room.participants.keys()].find(k => shortId(k) === p.id);
+    if (!pid) return;
+    removePlayer(room, pid);
+  });
+
+  socket.on('host:backup', (p, cb) => {
+    const room = hostRoom(socket); if (!room || typeof cb !== 'function') return;
+    const json = JSON.stringify(exportRoom(room));
+    const h = crypto.createHash('sha1').update(json).digest('hex');
+    if (p && p.have === h) return cb({ same: true });
+    cb({ hash: h, json });
+  });
+
+  socket.on('host:restore', (p, cb) => {
+    if (typeof cb !== 'function') return;
+    let data; try { data = JSON.parse(String(p && p.json || '')); } catch (_) { return cb({ ok: false }); }
+    if (!data || data.v !== 1 || !/^\d{6}$/.test(String(data.code)) || data.hostToken !== (p && p.hostToken)) return cb({ ok: false });
+    if (Date.now() - (data.savedAt || 0) > ROOM_IDLE_MS) return cb({ ok: false });
+    const existing = rooms.get(data.code);
+    if (existing) {
+      if (existing.hostToken !== data.hostToken) return cb({ ok: false });
+    } else {
+      try { importRoom(data); } catch (e) { console.error('restore failed', e); return cb({ ok: false }); }
+    }
+    const room = rooms.get(data.code);
+    socket.join('host:' + room.code);
+    socket.data.hostCode = room.code;
+    room.lastActive = Date.now();
+    console.log('room restored', room.code, room.participants.size, 'players');
+    cb({ ok: true, restored: !existing, snapshot: hostSnapshot(room) });
+    broadcastState(room);
   });
 
   socket.on('host:goto', p => {
@@ -633,18 +823,26 @@ io.on('connection', socket => {
   /* ---------- audience ---------- */
   socket.on('aud:join', (p, cb) => {
     if (typeof cb !== 'function') return;
+    const ip = clientIp(socket.handshake.headers, socket.handshake.address);
+    if (guessBlocked(ip) || (socket.data.fails || 0) >= 10) return cb({ ok: false, reason: 'blocked', error: 'Too many wrong attempts. Try again in a few minutes.' });
+    const fail = (reason, error) => { socket.data.fails = (socket.data.fails || 0) + 1; guessFailed(ip); cb({ ok: false, reason, error }); };
     const room = rooms.get(String(p && p.code));
-    if (!room || room.ended) return cb({ ok: false, error: 'No live presentation with that code.' });
+    if (!room || room.ended) return fail('noroom', 'No live presentation with that code.');
     let pid = str(p.pid, 64);
     if (!/^[a-zA-Z0-9_-]{8,64}$/.test(pid)) pid = crypto.randomUUID();
+    if (room.banned.has(pid)) return cb({ ok: false, reason: 'banned', error: 'You were removed from this session by the presenter.' });
     let part = room.participants.get(pid);
     if (!part) {
+      if (room.locked) return cb({ ok: false, reason: 'locked', error: 'This session is locked — the presenter is not letting new people in.' });
+      if (room.pin && String(p.pin || '') !== room.pin) return fail('pin', p.pin ? 'Wrong PIN. Ask the presenter.' : 'This session needs a PIN.');
       if (connectedCount(room) >= MAX_PARTICIPANTS) return cb({ ok: false, error: 'This session is full.' });
-      const nm = str(p.name, 30).trim();
-      part = { name: nm || `Guest ${++room.guestNo}`, sockets: new Set(), joinedAt: Date.now(), lastReact: 0, lastQa: 0 };
+      const nm = cleanName(p.name);
+      if (nm === null) return cb({ ok: false, reason: 'badname', error: 'Please choose a different name.' });
+      part = { name: uniqueName(room, nm || `Guest ${++room.guestNo}`, pid), sockets: new Set(), joinedAt: Date.now(), lastReact: 0, lastQa: 0 };
       room.participants.set(pid, part);
-    } else if (p.name && str(p.name, 30).trim()) {
-      part.name = str(p.name, 30).trim();
+    } else if (p.name) {
+      const nm = cleanName(p.name);
+      if (nm) part.name = uniqueName(room, nm, pid);
     }
     part.sockets.add(socket.id);
     socket.data.code = room.code;
