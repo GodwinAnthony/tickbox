@@ -305,17 +305,25 @@
       return;
     }
     if (q.readyIn > 0) {
-      const goAt = Date.now() + q.readyIn;
-      main.innerHTML = `<div class="waiting"><div><div class="count-big" id="cd">${Math.ceil(q.readyIn / 1000)}</div><h2>${esc(s.question)}</h2><p>Answers appear in a moment — be quick!</p></div></div>`;
+      const goAt = Date.now() + q.readyIn, readMs = q.readMs || 3000;
+      let mode = '';
       const tick = () => {
         const left = goAt - Date.now();
-        const el = $('#cd'); if (!el) return;
+        const m = left > readMs ? 'banner' : 'read';
+        if (m !== mode) {
+          mode = m;
+          main.innerHTML = m === 'banner'
+            ? `<div class="waiting"><div>${badge('clock')}<h2>Answer quickly to get more points!</h2><p>The question is coming up…</p></div></div>`
+            : `<div class="waiting"><div><div class="count-big" id="cd">${Math.ceil(left / 1000)}</div><h2>${esc(s.question)}</h2><p>Read the question — answers appear in a moment</p></div></div>`;
+        }
+        const el = $('#cd');
+        if (!el && mode === 'read') return;
         if (left <= 0) {
           // show answers right away even if the server's "go" message is a little late
           state.quiz = { ...q, readyIn: 0, remaining: Math.max(0, (q.remaining || s.time * 1000) - q.readyIn) };
           draw(true); return;
         }
-        el.textContent = Math.ceil(left / 1000);
+        if (el) el.textContent = Math.ceil(left / 1000);
         quizRaf = requestAnimationFrame(tick);
       };
       quizRaf = requestAnimationFrame(tick);

@@ -167,7 +167,9 @@
 
   R.quiz = function (viz, slide, data, st, opts) {
     data = data || { counts: slide.options.map(() => 0), total: 0, started: false, revealed: false };
-    const phase = data.board ? 'board' : data.revealed ? 'reveal' : !data.started ? 'wait' : data.readyIn > 0 ? 'ready' : 'run';
+    const readMs = data.readMs || 3000;
+    const phase = data.board ? 'board' : data.revealed ? 'reveal' : !data.started ? 'wait'
+      : data.readyIn > readMs + 150 ? 'banner' : data.readyIn > 0 ? 'ready' : 'run';
     if (st.phase !== phase) {
       if (st.raf) cancelAnimationFrame(st.raf);
       st.phase = phase; st.cols = null; st.list = null; st.rows = null; st.boardSig = null;
@@ -176,7 +178,7 @@
       const slideEl = viz.closest('.slide');
       if (slideEl) {
         slideEl.classList.toggle('mode-board', phase === 'board');
-        slideEl.classList.toggle('mode-intro', phase === 'wait' && !!opts.host);
+        slideEl.classList.toggle('mode-intro', (phase === 'wait' && !!opts.host) || phase === 'banner');
       }
       if (phase === 'reveal' || phase === 'board') {
         // filled below
@@ -185,18 +187,35 @@
           <div class="qi-num">Question <b>${opts.quizNo || 1}</b> of ${opts.quizTotal || 1}</div>
           <div class="qi-players"><b class="qi-count">0</b> <span class="qi-lbl">players ready</span></div>
           <div class="qi-hint">${icon('clock')} Answer quickly to get more points</div></div>`);
+      } else if (phase === 'banner') {
+        viz.insertAdjacentHTML('beforeend', `<div class="q-banner"><div class="qb-ic">${icon('clock')}</div><div class="qb-txt">Answer quickly to get more points!</div></div>`);
       } else if (phase === 'ready') {
         const r = document.createElement('div');
         r.className = 'quiz-ready';
-        r.innerHTML = `<div class="ready-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" style="stroke:var(--line)" stroke-width="7"/><circle class="ring" cx="50" cy="50" r="44" fill="none" stroke="#5B3DF5" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5"/></svg><div class="num"></div></div><div class="ready-txt">Get ready to answer!</div>`;
+        r.innerHTML = `<div class="ready-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" style="stroke:var(--line)" stroke-width="7"/><circle class="ring" cx="50" cy="50" r="44" fill="none" stroke="#5B3DF5" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5"/></svg><div class="num"></div></div><div class="ready-txt">Look at your phone — answers coming up</div>`;
         viz.appendChild(r);
         st.goAt = Date.now() + (data.readyIn || 0);
-        const total = data.readyIn || 4000;
+        const total = readMs;
         const ring = r.querySelector('.ring'), num = r.querySelector('.num');
         const loop = () => {
           const left = Math.max(0, st.goAt - Date.now());
           num.textContent = left > 0 ? Math.ceil(left / 1000) : 'Go!';
           ring.style.strokeDashoffset = String(276.5 * (left / total));
+          if (left > 0) st.raf = requestAnimationFrame(loop);
+        };
+        loop();
+      } else if (phase === 'run') {
+        const n = slide.options.length;
+        viz.insertAdjacentHTML('beforeend', `<div class="qrun">
+          <div class="qr-center"><div class="qr-time">0:00</div><div class="qr-count"><b>0</b></div><div class="qr-lbl">answers</div></div>
+          <div class="qr-opts" style="grid-template-columns:repeat(${n},1fr)">${slide.options.map((o, i) => `<div class="qr-opt" style="--c:${QUIZ_COLORS[i]};animation-delay:${i * 80}ms"><svg class="shape" viewBox="0 0 24 24">${SHAPES[i]}</svg><span>${esc(o)}</span></div>`).join('')}</div></div>`);
+        st.endsAt = Date.now() + (data.remaining != null ? data.remaining : slide.time * 1000);
+        const tEl = viz.querySelector('.qr-time');
+        const fmt = ms => { const s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+        const loop = () => {
+          const left = Math.max(0, st.endsAt - Date.now());
+          tEl.textContent = fmt(left);
+          tEl.classList.toggle('low', left <= 5000);
           if (left > 0) st.raf = requestAnimationFrame(loop);
         };
         loop();
@@ -230,8 +249,12 @@
       if (c) { tween(c, data.players || 0); viz.querySelector('.qi-lbl').textContent = (data.players === 1 ? 'player' : 'players') + ' ready'; }
     }
     if (phase === 'run') {
-      const a = viz.querySelector('.quiz-answers');
-      if (a) a.innerHTML = `<b>${data.total}</b>answer${data.total === 1 ? '' : 's'}`;
+      const cb = viz.querySelector('.qr-count b');
+      if (cb && +cb.textContent !== data.total) {
+        cb.textContent = data.total;
+        const c = cb.parentElement; c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+        viz.querySelector('.qr-lbl').textContent = data.total === 1 ? 'answer' : 'answers';
+      }
       if (data.remaining != null && Math.abs((Date.now() + data.remaining) - st.endsAt) > 1200) st.endsAt = Date.now() + data.remaining;
     }
     if (phase === 'board') {
