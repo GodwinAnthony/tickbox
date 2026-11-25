@@ -1080,3 +1080,13 @@ a.btn { text-decoration: none; }
 .ci-warn { margin-top: 5px; font-size: 12px; color: #A86200; }
 .ci-time { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--muted); flex: none; }
 .ci-time .ic { width: 14px; height: 14px; }
+
+/* flags (emoji -> image) */
+.flag-emo { height: 1em; width: auto; vertical-align: -0.12em; border-radius: .12em; box-shadow: 0 0 0 1px rgba(0,0,0,.08); margin: 0 .08em; }
+.q-flags { display: flex; gap: .3em; margin-top: .35em; }
+.q-flags .flag-big { height: 2.6em; width: auto; max-width: 100%; border-radius: .14em; box-shadow: 0 0 0 1px rgba(0,0,0,.1), 0 10px 26px -12px rgba(0,0,0,.35); }
+.q-flags.solo { margin-top: 0; }
+.q-flags.solo .flag-big { height: 3.4em; }
+.aud-q .q-flags .flag-big, .waiting h2 .q-flags .flag-big { height: 3.2em; }
+.quiz-q .q-flags .flag-big { height: 2.8em; }
+.waiting h2 .q-flags { justify-content: center; }
